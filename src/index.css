@@ -1,16 +1,28 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --brand-primary: #2563eb;
+    --brand-accent: #0f172a;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
-  
+
   h1, h2, h3, h4, .font-display {
     font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
   }
 }
 
-/* Hide scrollbar for category bars while keeping scrollability */
+/* Optional brand-aware utility hooks */
+.bg-brand {
+  background-color: var(--brand-primary);
+}
+.text-brand {
+  color: var(--brand-primary);
+}
+
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
