@@ -25,7 +25,6 @@ import {
   History,
   Activity,
   Shield,
-  Sliders,
   Kanban,
   Wallet,
   FileBarChart,
@@ -33,6 +32,9 @@ import {
   Sparkles,
   KeyRound,
   Bell,
+  Code2,
+  Palette,
+  HeartPulse,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -128,6 +130,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'deposits', label: 'Deposits', icon: Wallet },
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
           { id: 'notifications', label: 'Notifications', icon: Bell },
+          { id: 'white_label', label: 'White-label', icon: Palette },
+          { id: 'partner_api', label: 'Partner API', icon: Code2 },
+          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse },
           { id: 'preventive', label: 'Preventive PM', icon: Calendar },
           { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
           { id: 'staff_schedule', label: 'Staff Rostering', icon: Calendar },
@@ -144,6 +149,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
           { id: 'permissions', label: 'Permissions', icon: KeyRound },
           { id: 'compliance_audit', label: 'Compliance Audit', icon: History },
+          { id: 'partner_api', label: 'Partner API', icon: Code2 },
+          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse },
           { id: 'super_listings', label: 'Marketplace Vacancies', icon: Store },
           { id: 'super_users', label: 'User Directory', icon: Users },
           { id: 'analytics_reports', label: 'Global Analytics', icon: BarChart3 },
@@ -230,7 +237,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-900 animate-pulse" />
           </div>
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 5 · Intelligence & Scale</p>
+          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 6 · Ecosystem & Polish</p>
         </div>
       )}
     </aside>
