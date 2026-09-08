@@ -29,6 +29,10 @@ import {
   Kanban,
   Wallet,
   FileBarChart,
+  Brain,
+  Sparkles,
+  KeyRound,
+  Bell,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -65,10 +69,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'tenant_documents', label: 'Documents', icon: FileText },
           { id: 'tenant_lease', label: 'Lease & SLA', icon: FileBadge },
           { id: 'announcements', label: 'Announcements', icon: Megaphone },
+          { id: 'notifications', label: 'Notifications', icon: Bell },
         ];
       case 'property_manager':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
+          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
+          { id: 'ai_assist', label: 'AI Assist', icon: Sparkles },
           { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban },
           { id: 'properties', label: 'Properties & Centers', icon: Building },
           { id: 'manager_tickets', label: 'Tickets & SLAs', icon: Ticket },
@@ -78,6 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'tenants_list', label: 'Tenants', icon: Users },
           { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign },
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
+          { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'staff_schedule', label: 'Roster & Shifts', icon: Calendar },
           { id: 'vendors', label: 'Vendors', icon: Truck },
           { id: 'announcements', label: 'Announcements', icon: Megaphone },
@@ -88,6 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'maintenance_jobs', label: 'My Jobs', icon: Wrench },
           { id: 'staff_schedule', label: 'My Schedule', icon: Calendar },
           { id: 'preventive', label: 'Preventive PM', icon: CheckCircle2 },
+          { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'messages', label: 'Operations Chat', icon: MessageSquare },
         ];
       case 'finance':
@@ -95,6 +104,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, highlight: true },
           { id: 'deposits', label: 'Deposit Ledger', icon: Wallet },
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
+          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
+          { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'expenses_ledger', label: 'Expenses Ledger', icon: Receipt },
           { id: 'transactions', label: 'Transactions', icon: ArrowDownUp },
           { id: 'financial_requests', label: 'Petty Cash & Requests', icon: CreditCard },
@@ -104,6 +115,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'admin':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
+          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
+          { id: 'ai_assist', label: 'AI Assist', icon: Sparkles },
+          { id: 'permissions', label: 'Permissions', icon: KeyRound },
+          { id: 'compliance_audit', label: 'Compliance Audit', icon: History },
           { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban },
           { id: 'properties', label: 'Properties & Units', icon: Building },
           { id: 'tenants_list', label: 'Tenants Directory', icon: Users },
@@ -112,6 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign },
           { id: 'deposits', label: 'Deposits', icon: Wallet },
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
+          { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'preventive', label: 'Preventive PM', icon: Calendar },
           { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
           { id: 'staff_schedule', label: 'Staff Rostering', icon: Calendar },
@@ -125,10 +141,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'super_approvals', label: 'Org Approvals', icon: ShieldCheck, badgeCount: 'Pending' },
           { id: 'super_organizations', label: 'All Organizations', icon: Layers },
           { id: 'subscription_billing', label: 'Subscription Billing', icon: CreditCard },
+          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
+          { id: 'permissions', label: 'Permissions', icon: KeyRound },
+          { id: 'compliance_audit', label: 'Compliance Audit', icon: History },
           { id: 'super_listings', label: 'Marketplace Vacancies', icon: Store },
           { id: 'super_users', label: 'User Directory', icon: Users },
           { id: 'analytics_reports', label: 'Global Analytics', icon: BarChart3 },
-          { id: 'audit_logs', label: 'System Audit Trail', icon: History },
           { id: 'db_backup', label: 'Database Backup', icon: Settings },
         ];
       default:
@@ -212,7 +230,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-900 animate-pulse" />
           </div>
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 4 · Commercial Engine</p>
+          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 5 · Intelligence & Scale</p>
         </div>
       )}
     </aside>
