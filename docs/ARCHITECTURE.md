@@ -27,7 +27,7 @@ Umhlaba Wami is structured as a **single-page application (SPA)** with a clear s
 │  Domain Types (User, Organization, Shop, Ticket, Lease …)   │
 └─────────────────────────────────────────────────────────────┘
                               │
-                              ▼  (production target)
+                              ▼  (Phase 2 target)
 ┌─────────────────────────────────────────────────────────────┐
 │  Supabase                                                    │
 │  - PostgreSQL + RLS                                          │
@@ -36,6 +36,8 @@ Umhlaba Wami is structured as a **single-page application (SPA)** with a clear s
 │  - Realtime (optional)                                       │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+This architecture is deliberately layered so that Phase 2 can replace the client-side data and auth implementations without a wholesale rewrite of the UI.
 
 ## 2. Application Entry & Routing
 
@@ -48,7 +50,7 @@ Umhlaba Wami is structured as a **single-page application (SPA)** with a clear s
   - Manages global modals (login, register, ticket creation, property detail, broadcast, etc.).
   - Supports dark mode via a CSS class on `document.documentElement`.
 
-There is **no React Router** dependency; navigation is state-driven inside `App.tsx` and the layout components.
+There is currently **no React Router** dependency; navigation is state-driven. This may be revisited in later phases if deep-linking and shareable URLs become important.
 
 ## 3. Authentication & Authorisation
 
@@ -59,15 +61,7 @@ There is **no React Router** dependency; navigation is state-driven inside `App.
 - Special super-admin path: username `superadmin` or org codes `SUPER` / `ADMIN`.
 - Organisation status is validated (`Pending Approval`, `Suspended`, `Rejected` block login).
 - User status must be `Active`.
-- Role-based permission helpers:
-  - `canCreateTicket`
-  - `canAssignTicket`
-  - `canManageProperties`
-  - `canManageUsers`
-  - `canAccessFinancials`
-  - `canApproveOrganizations`
-  - `canManageSubscriptions`
-  - `canManagePublicListings`
+- Role-based permission helpers are centralised and should remain the single source of truth for UI gating.
 
 ### Roles
 
@@ -80,19 +74,21 @@ There is **no React Router** dependency; navigation is state-driven inside `App.
 | `admin` | Full organisation control |
 | `super_admin` | Platform-wide: org approval, subscriptions, audit |
 
+Phase 2 will replace the current session mechanism with proper server-backed authentication while preserving the organisation-code login experience where it adds value.
+
 ## 4. Data Layer
 
-### DbService (`src/services/db.ts`)
+### DbService (`src/services/db.ts`) — Phase 1
 
-- Holds all domain collections (organisations, users, shopping centres, properties, shops, tenants, leases, tickets, finance, etc.).
+- Holds all domain collections.
 - Seeds realistic Eswatini demo data on first load.
-- Persists the entire state to `localStorage` under `umhlaba_wami_db_v2`.
-- Exposes a simple publish-subscribe API so React components re-render on mutations.
+- Persists state to `localStorage` under `umhlaba_wami_db_v2`.
+- Exposes a publish-subscribe API so React components re-render on mutations.
 - Provides helper methods for common operations (ticket lifecycle, audit logging, etc.).
 
 ### Production Schema
 
-`public/supabase-schema.sql` defines the target PostgreSQL tables and a starter set of RLS policies. The TypeScript interfaces in `src/types/index.ts` are deliberately aligned with this schema.
+`public/supabase-schema.sql` defines the target PostgreSQL tables and a starter set of RLS policies. The TypeScript interfaces in `src/types/index.ts` are deliberately aligned with this schema so that the transition in Phase 2 is primarily an implementation swap rather than a model redesign.
 
 ## 5. Component Organisation
 
@@ -101,7 +97,7 @@ There is **no React Router** dependency; navigation is state-driven inside `App.
 | `components/auth` | Login and organisation registration modals |
 | `components/layout` | Navbar, Sidebar (role-aware), Footer |
 | `components/marketplace` | Public marketplace, property cards, enquiry & lead modals |
-| `components/dashboard` | All role dashboards and operational lists (tickets, tenants, finance, etc.) |
+| `components/dashboard` | All role dashboards and operational lists |
 | `components/management` | Units directory, lease & SLA management |
 | `components/tickets` | Multi-step ticket creation wizard and detailed ticket modal |
 
@@ -114,16 +110,27 @@ There is **no React Router** dependency; navigation is state-driven inside `App.
 - Emergency centre-wide alert banner when active announcements match emergency keywords.
 - Responsive layout: sidebar hidden on smaller viewports; content adapts.
 
-## 7. Extensibility Points
+## 7. Extensibility Points (Aligned with Roadmap)
 
-1. **Replace DbService** with a Supabase client wrapper while keeping the same TypeScript interfaces.
-2. **Enhance AuthService** to use Supabase Auth (email / magic link / OAuth) while preserving the organisation-code login UX if required.
-3. **Add Realtime** subscriptions for tickets and announcements.
-4. **Integrate GenAI** (already declared in `metadata.json`) for ticket classification, SLA risk prediction, or natural-language reporting.
-5. **Export adapters** for finance systems (Sage, QuickBooks) from the Finance Portal.
+1. **Phase 2** — Replace DbService and AuthService internals with Supabase client while keeping the same TypeScript interfaces and permission helpers.
+2. **Phase 3+** — Deepen ticket, SLA, staff, and vendor workflows inside the existing component structure.
+3. **Phase 4+** — Extend leasing, payments, and marketplace growth features.
+4. **Phase 5** — Introduce analytics services and GenAI-assisted features (capability already declared in `metadata.json`).
+5. **Phase 6** — Public API, webhooks, white-label theming, and native/PWA mobile experiences.
 
-## 8. Security Notes (Current Demo)
+## 8. Security Notes
 
+### Phase 1 (Current)
 - No password hashing or server-side validation.
 - All data is client-side; suitable only for demonstration and local development.
-- Production deployment **must** move to Supabase (or equivalent) with RLS, authenticated storage, and proper session management.
+
+### From Phase 2 Onward
+- Multi-tenant isolation via Row-Level Security.
+- Proper authentication and session management.
+- Secure storage for files and documents.
+- Server-side audit logging of sensitive actions.
+- Progressive hardening (rate limiting, CSP, backups, etc.) as the product approaches production use.
+
+---
+
+*This document is updated as the architecture evolves through the phases described in `ROADMAP.md`.*

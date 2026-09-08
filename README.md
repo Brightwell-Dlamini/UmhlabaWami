@@ -2,7 +2,7 @@
 
 **Manage Better. Respond Faster. Know More.**
 
-Commercial property management platform and vacant space marketplace designed for shopping centres and commercial properties in Eswatini.
+Commercial property management platform and vacant space marketplace designed for shopping centres and commercial properties in the Kingdom of Eswatini.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
@@ -11,27 +11,37 @@ Commercial property management platform and vacant space marketplace designed fo
 
 ---
 
-## Overview
+## Vision
 
-Umhlaba Wami ("My Land" in siSwati) is a multi-tenant commercial property operations platform that combines:
+Umhlaba Wami (“My Land” in siSwati) is being built as a **world-class digital operating system for commercial real estate in Eswatini**. It combines a modern vacant-space marketplace with an enterprise-grade operations platform so that landlords, property managers, technicians, finance teams, and tenants can run their entire commercial relationship in one place.
 
-- **Public marketplace** for vacant retail, office, warehouse, restaurant, and kiosk units
-- **Role-based operations dashboards** for tenants, property managers, maintenance technicians, finance teams, organisation admins, and platform super-admins
-- **SLA-driven maintenance ticketing** with timelines, attachments, ratings, and escalations
-- **Lease and SLA agreement management**
-- **Finance portal** (rent roll, expenses, transactions, approvals)
-- **Staff scheduling, vendor management, announcements, and emergency broadcasts**
-- **Organisation onboarding with subscription tiers** (Starter / Professional / Enterprise)
+The product aims for Silicon Valley standards of craft, reliability, and user experience while remaining deeply local — Emalangeni pricing, Eswatini centres, and the practical realities of managing retail and commercial space in Mbabane, Manzini, Ezulwini, Matsapha and beyond.
 
-The application is currently implemented as a rich client-side React single-page application with an in-memory/localStorage persistence layer that mirrors a production Supabase (PostgreSQL) schema. A production schema and Row-Level Security policies are provided in `public/supabase-schema.sql`.
+See **[docs/VISION.md](docs/VISION.md)** for the full product vision and idea bank, and **[docs/ROADMAP.md](docs/ROADMAP.md)** for the phased delivery plan.
 
 ---
 
-## Key Features
+## Current Status — Phase 1 (Foundation)
+
+The repository currently contains a rich, multi-role React single-page application with:
+
+- Public marketplace for vacant commercial units
+- Role-based dashboards (Tenant, Property Manager, Maintenance, Finance, Org Admin, Super Admin)
+- SLA-aware maintenance ticketing with timelines and completion workflows
+- Lease and organisation management foundations
+- Finance, staff, vendor, and announcement views
+- Realistic Eswatini-centric demo data
+- Production-oriented PostgreSQL / Supabase schema and starter RLS policies
+
+This is **Phase 1**. The data layer is still client-side (in-memory + localStorage). Subsequent phases will introduce a real multi-tenant backend, deepen operations and commercial workflows, add intelligence, and harden the platform for production use at scale.
+
+---
+
+## Key Features (Phase 1)
 
 | Area | Capabilities |
 |------|--------------|
-| **Marketplace** | Public listing of available units, featured properties, enquiry forms, lead capture for landlords |
+| **Marketplace** | Public listing of available units, featured properties, enquiry forms, landlord lead capture |
 | **Authentication** | Organisation-code + username login, super-admin access, role-based session restoration |
 | **Tenant Portal** | Overview, ticket creation & tracking, lease documents, announcements |
 | **Manager Portal** | Dashboard KPIs, ticket assignment, broadcasts, units directory, tenants list |
@@ -49,8 +59,8 @@ The application is currently implemented as a rich client-side React single-page
 - **Styling**: Tailwind CSS 4, Lucide React icons, Motion animations
 - **State / Data**: Custom in-memory database service (`src/services/db.ts`) with localStorage persistence and pub/sub updates
 - **Auth**: Custom `AuthService` (`src/services/auth.ts`) with role permission matrix
-- **Backend target**: Supabase (PostgreSQL + RLS) — schema supplied
-- **AI capability flag**: Google GenAI (declared in metadata for future server-side use)
+- **Backend target**: Supabase (PostgreSQL + RLS) — schema supplied in `public/supabase-schema.sql`
+- **AI capability flag**: Google GenAI (declared for future server-side use)
 
 ---
 
@@ -58,29 +68,31 @@ The application is currently implemented as a rich client-side React single-page
 
 ```
 UmhlabaWami/
-├── index.html                 # App shell & meta tags
+├── index.html
 ├── package.json
 ├── vite.config.ts
 ├── tsconfig.json
-├── metadata.json              # Product name, description, capabilities
+├── metadata.json
 ├── public/
-│   └── supabase-schema.sql    # Production PostgreSQL schema + sample RLS
+│   └── supabase-schema.sql
 ├── src/
 │   ├── main.tsx
-│   ├── App.tsx                # Root routing / view orchestration
+│   ├── App.tsx
 │   ├── index.css
-│   ├── types/index.ts         # Domain TypeScript interfaces & unions
+│   ├── types/index.ts
 │   ├── services/
-│   │   ├── auth.ts            # Authentication & permission helpers
-│   │   └── db.ts              # Demo data, CRUD helpers, audit logging
+│   │   ├── auth.ts
+│   │   └── db.ts
 │   └── components/
-│       ├── auth/              # LoginModal, RegisterOrgModal
-│       ├── layout/            # Navbar, Sidebar, Footer
-│       ├── marketplace/       # Public listings, property cards & modals
-│       ├── dashboard/         # Role-specific portals & operational views
-│       ├── management/        # Units directory, Lease management
-│       └── tickets/           # CreateTicketWizard, TicketDetailModal
-└── docs/                      # Extended documentation (this set)
+│       ├── auth/
+│       ├── layout/
+│       ├── marketplace/
+│       ├── dashboard/
+│       ├── management/
+│       └── tickets/
+└── docs/
+    ├── ROADMAP.md          ← Phased delivery plan
+    ├── VISION.md           ← Product vision & idea bank
     ├── ARCHITECTURE.md
     ├── DATA_MODEL.md
     ├── USER_GUIDE.md
@@ -94,19 +106,14 @@ UmhlabaWami/
 ### Prerequisites
 
 - Node.js 20+ (recommended)
-- Bun or npm / yarn / pnpm
+- npm, yarn, pnpm, or Bun
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/Brightwell-Dlamini/UmhlabaWami.git
 cd UmhlabaWami
-
-# Install dependencies (example with npm)
 npm install
-
-# Start development server (port 3000)
 npm run dev
 ```
 
@@ -126,7 +133,7 @@ Open http://localhost:3000.
 
 ## Demo Accounts
 
-The seed data includes realistic Eswatini organisations and users. Login requires **Organisation Code** + **Username** (password is currently accepted but not validated in the demo layer).
+Login requires **Organisation Code** + **Username** (password is accepted but not validated in the current demo layer).
 
 | Role | Organisation Code | Username |
 |------|-------------------|----------|
@@ -137,11 +144,9 @@ The seed data includes realistic Eswatini organisations and users. Login require
 | Maintenance | `GAB-070826` | `bheki.maintenance` |
 | Finance | `GAB-070826` | `thandeka.finance` |
 
-Additional organisations (Swazi Plaza, Riverstone) are seeded for multi-tenant testing. One organisation remains in `Pending Approval` status to demonstrate the super-admin approval workflow.
-
 ---
 
-## Subscription Tiers
+## Subscription Tiers (Planned Commercial Model)
 
 | Tier | Properties | Tenants | Users | Storage | Monthly (E) |
 |------|------------|---------|-------|---------|-------------|
@@ -153,21 +158,25 @@ Additional organisations (Swazi Plaza, Riverstone) are seeded for multi-tenant t
 
 ## Documentation
 
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Data Model & Schema](docs/DATA_MODEL.md)
-- [User Guide by Role](docs/USER_GUIDE.md)
-- [Deployment & Production Notes](docs/DEPLOYMENT.md)
+| Document | Description |
+|----------|-------------|
+| [Roadmap](docs/ROADMAP.md) | Phased plan from current foundation to category-defining platform |
+| [Vision & Idea Bank](docs/VISION.md) | Long-term vision and extensive feature ideas |
+| [Architecture](docs/ARCHITECTURE.md) | Technical architecture and extension points |
+| [Data Model](docs/DATA_MODEL.md) | Domain entities and schema |
+| [User Guide](docs/USER_GUIDE.md) | Role-based usage guide |
+| [Deployment](docs/DEPLOYMENT.md) | Production considerations |
 
 ---
 
-## Roadmap / Production Considerations
+## Roadmap at a Glance
 
-- Replace localStorage `db` service with Supabase client (Auth, Realtime, Storage)
-- Enforce password hashing and proper JWT / session management
-- Complete Row-Level Security policies for all tables
-- Wire Google GenAI for intelligent ticket triage / summarisation (capability already declared)
-- Export integrations (Sage / QuickBooks) for finance
-- Mobile-responsive refinements and PWA packaging
+1. **Phase 1 — Foundation** (current) — Complete, polished multi-role SPA and domain model  
+2. **Phase 2 — Real Backend** — Supabase multi-tenancy, auth, storage, security  
+3. **Phase 3 — Operations Excellence** — World-class ticketing, SLA, staff & vendor workflows  
+4. **Phase 4 — Commercial Engine** — Full leasing lifecycle, marketplace growth, finance depth  
+5. **Phase 5 — Intelligence & Scale** — Analytics, AI assistance, enterprise controls  
+6. **Phase 6 — Ecosystem & Polish** — APIs, integrations, mobile, continuous excellence  
 
 ---
 
