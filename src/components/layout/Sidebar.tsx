@@ -6,8 +6,6 @@ import {
   MessageSquare,
   FileText,
   FileBadge,
-  Bell,
-  User,
   Building,
   Wrench,
   Users,
@@ -25,6 +23,8 @@ import {
   Store,
   Layers,
   History,
+  Activity,
+  Shield,
   Sliders,
   ChevronLeft,
   ChevronRight,
@@ -50,9 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   organizationName,
   orgCode,
-  onOpenCreateTicket,
 }) => {
-  // Navigation tabs definition by Role matching Section 43
   const getNavItems = () => {
     switch (role) {
       case 'tenant':
@@ -66,12 +64,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'announcements', label: 'Announcements', icon: Megaphone },
         ];
       case 'property_manager':
-      case 'landlord':
         return [
+          { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
           { id: 'manager_overview', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'properties', label: 'Properties & Centers', icon: Building },
           { id: 'manager_tickets', label: 'Tickets & SLAs', icon: Ticket },
           { id: 'maintenance_ops', label: 'Maintenance Ops', icon: Wrench },
+          { id: 'preventive', label: 'Preventive PM', icon: Calendar },
+          { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
           { id: 'tenants_list', label: 'Tenants', icon: Users },
           { id: 'staff_schedule', label: 'Roster & Shifts', icon: Calendar },
           { id: 'vendors', label: 'Vendors', icon: Truck },
@@ -83,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return [
           { id: 'maintenance_jobs', label: 'My Jobs', icon: Wrench },
           { id: 'staff_schedule', label: 'My Schedule', icon: Calendar },
-          { id: 'maintenance_completed', label: 'Completed Jobs', icon: CheckCircle2 },
+          { id: 'preventive', label: 'Preventive PM', icon: CheckCircle2 },
           { id: 'messages', label: 'Operations Chat', icon: MessageSquare },
         ];
       case 'finance':
@@ -98,12 +98,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
       case 'admin':
         return [
+          { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
           { id: 'admin_overview', label: 'Org Dashboard', icon: LayoutDashboard },
           { id: 'properties', label: 'Properties & Units', icon: Building },
           { id: 'tenants_list', label: 'Tenants Directory', icon: Users },
           { id: 'org_users', label: 'Staff & Roles', icon: Users },
           { id: 'manager_tickets', label: 'All Tickets', icon: Ticket },
+          { id: 'preventive', label: 'Preventive PM', icon: Calendar },
+          { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
           { id: 'staff_schedule', label: 'Staff Rostering', icon: Calendar },
+          { id: 'vendors', label: 'Vendors', icon: Truck },
           { id: 'finance_overview', label: 'Finances', icon: DollarSign },
           { id: 'announcements', label: 'Announcements', icon: Megaphone },
           { id: 'analytics_reports', label: 'Export Reports', icon: BarChart3 },
@@ -124,7 +128,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       default:
         return [
           { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'properties', label: 'Properties & Units', icon: Building },
           { id: 'manager_tickets', label: 'Tickets', icon: Ticket },
         ];
     }
@@ -138,7 +141,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         collapsed ? 'w-18' : 'w-64'
       }`}
     >
-      {/* Top org info */}
       <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
         {!collapsed && (
           <div className="min-w-0 pr-2">
@@ -146,9 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {role === 'super_admin' ? 'Super Admin Console' : organizationName || 'Umhlaba Wami'}
             </h2>
             {orgCode && role !== 'super_admin' && (
-              <p className="text-[11px] font-mono text-blue-600 dark:text-blue-400 truncate">
-                Code: {orgCode}
-              </p>
+              <p className="text-[11px] font-mono text-blue-600 dark:text-blue-400 truncate">Code: {orgCode}</p>
             )}
           </div>
         )}
@@ -161,7 +161,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Navigation item list */}
       <div className="flex-1 overflow-y-auto py-3 px-2.5 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -179,7 +178,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }`}
               title={collapsed ? item.label : undefined}
             >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : item.highlight ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200'}`} />
+              <Icon
+                className={`w-4 h-4 shrink-0 ${
+                  isActive
+                    ? 'text-white'
+                    : item.highlight
+                    ? 'text-blue-600'
+                    : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200'
+                }`}
+              />
               {!collapsed && <span className="truncate">{item.label}</span>}
               {!collapsed && item.badgeCount && (
                 <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">
@@ -191,14 +198,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </div>
 
-      {/* Footer / Role indicator */}
       {!collapsed && (
         <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-[11px] text-slate-500">
           <div className="flex items-center justify-between">
-            <span className="font-medium text-slate-600 dark:text-slate-300 capitalize">{String(role || 'tenant').replace(/_/g, ' ')}</span>
+            <span className="font-medium text-slate-600 dark:text-slate-300 capitalize">
+              {String(role || 'tenant').replace(/_/g, ' ')}
+            </span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-900 animate-pulse" />
           </div>
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">RLS Multi-Tenant Enforced</p>
+          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 3 · Operations Excellence</p>
         </div>
       )}
     </aside>
