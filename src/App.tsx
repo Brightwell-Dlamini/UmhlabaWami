@@ -22,6 +22,9 @@ import { AnalyticsReportsView } from './components/dashboard/AnalyticsReportsVie
 import { TenantDocumentsView } from './components/dashboard/TenantDocumentsView';
 import { OrgUsersView } from './components/dashboard/OrgUsersView';
 import { OrgSettingsView } from './components/dashboard/OrgSettingsView';
+import { CentrePulseView } from './components/dashboard/CentrePulseView';
+import { SlaConfigView } from './components/dashboard/SlaConfigView';
+import { PreventiveMaintenanceView } from './components/dashboard/PreventiveMaintenanceView';
 import { CreateTicketWizard } from './components/tickets/CreateTicketWizard';
 import { TicketDetailModal } from './components/tickets/TicketDetailModal';
 import { PropertyDetailModal } from './components/marketplace/PropertyDetailModal';
@@ -93,13 +96,13 @@ export default function App() {
       case 'tenant':
         return 'tenant_overview';
       case 'property_manager':
-        return 'manager_overview';
+        return 'centre_pulse';
       case 'maintenance':
         return 'maintenance_jobs';
       case 'finance':
         return 'finance_overview';
       case 'admin':
-        return 'admin_overview';
+        return 'centre_pulse';
       case 'super_admin':
         return 'super_overview';
       default:
@@ -214,6 +217,23 @@ export default function App() {
 
             <div className="flex-1 min-w-0">
               {(() => {
+                if (sidebarActiveTab === 'centre_pulse') {
+                  return (
+                    <CentrePulseView
+                      onViewTicket={(id) => setSelectedTicketId(id)}
+                      onNavigate={handleTabChange}
+                    />
+                  );
+                }
+
+                if (sidebarActiveTab === 'sla_config') {
+                  return <SlaConfigView />;
+                }
+
+                if (sidebarActiveTab === 'preventive') {
+                  return <PreventiveMaintenanceView />;
+                }
+
                 if (sidebarActiveTab === 'properties' || sidebarActiveTab === 'units') {
                   return (
                     <UnitsDirectoryView
@@ -326,12 +346,11 @@ export default function App() {
                   );
                 }
 
-                if (currentUser?.role === 'property_manager') {
+                if (currentUser?.role === 'property_manager' || currentUser?.role === 'admin') {
                   return (
-                    <ManagerDashboard
+                    <CentrePulseView
                       onViewTicket={(id) => setSelectedTicketId(id)}
-                      onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
-                      onOpenBroadcastModal={() => setIsBroadcastOpen(true)}
+                      onNavigate={handleTabChange}
                     />
                   );
                 }
@@ -342,16 +361,6 @@ export default function App() {
 
                 if (currentUser?.role === 'finance') {
                   return <FinancePortal initialTab="rent_roll" />;
-                }
-
-                if (currentUser?.role === 'admin') {
-                  return (
-                    <ManagerDashboard
-                      onViewTicket={(id) => setSelectedTicketId(id)}
-                      onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
-                      onOpenBroadcastModal={() => setIsBroadcastOpen(true)}
-                    />
-                  );
                 }
 
                 return (
@@ -367,7 +376,6 @@ export default function App() {
         )}
       </div>
 
-      {/* Mobile bottom navigation — Phase 1 responsive requirement */}
       {viewMode === 'dashboard' && currentUser && (
         <MobileBottomNav
           role={currentUser.role}
