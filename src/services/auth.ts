@@ -1,5 +1,7 @@
 import { User, UserRole, Organization } from '../types';
 import { db } from './db';
+import { isSupabaseConfigured, getBackendMode } from '../lib/supabase';
+import { supabaseLogin, supabaseLogout, getSessionUser } from './supabaseAuth';
 
 const AUTH_STORAGE_KEY = 'umhlaba_wami_current_user_id';
 
@@ -7,9 +9,18 @@ class AuthService {
   private currentUser: User | null = null;
   private currentOrg: Organization | null = null;
   private listeners: Set<(user: User | null) => void> = new Set();
+  private sessionReady: Promise<void>;
 
   constructor() {
-    this.restoreSession();
+    this.sessionReady = this.restoreSession();
+  }
+
+  public whenReady(): Promise<void> {
+    return this.sessionReady;
+  }
+
+  public getBackendMode() {
+    return getBackendMode();
   }
 
   public subscribe(listener: (user: User | null) => void): () => void {
@@ -21,23 +32,38 @@ class AuthService {
     this.listeners.forEach((l) => l(this.currentUser));
   }
 
-  private restoreSession() {
+  private async restoreSession() {
     try {
+      if (isSupabaseConfigured) {
+        const user = await getSessionUser();
+        if (user) {
+          this.currentUser = user;
+          if (user.organization_id) {
+            // Org will be loaded lazily via getCurrentOrganization in demo;
+            // in Supabase mode UI can refetch as needed.
+            this.currentOrg = null;
+          }
+          this.notify();
+          return;
+        }
+      }
+
       const savedId = localStorage.getItem(AUTH_STORAGE_KEY);
       if (savedId) {
         const found = db.users.find((u) => u.id === savedId);
         if (found) {
           this.currentUser = found;
           if (found.organization_id) {
-            this.currentOrg = db.organizations.find((o) => o.id === found.organization_id) || null;
+            this.currentOrg =
+              db.organizations.find((o) => o.id === found.organization_id) || null;
           }
+          this.notify();
           return;
         }
       }
     } catch (e) {
       console.warn('Could not restore auth session', e);
     }
-    // Default to visitor (null), or we can start on public landing page
     this.currentUser = null;
     this.currentOrg = null;
   }
@@ -47,7 +73,9 @@ class AuthService {
   }
 
   public getCurrentOrganization(): Organization | null {
-    if (!this.currentUser || !this.currentUser.organization_id) return null;
+    if (!this.currentUser) return null;
+    if (!this.currentUser.organization_id) return null;
+    if (this.currentOrg) return this.currentOrg;
     return db.organizations.find((o) => o.id === this.currentUser?.organization_id) || null;
   }
 
@@ -55,36 +83,66 @@ class AuthService {
     return this.currentUser !== null;
   }
 
-  // LOGIN SUPPORTING ORGANIZATION CODE + USERNAME + PASSWORD (Requirement #9)
-  public login(organizationCode: string, username: string, _password?: string): { success: boolean; error?: string; user?: User } {
+  /**
+   * Synchronous demo login (Phase 1 localStorage mode).
+   * Prefer loginAsync when Supabase may be configured.
+   */
+  public login(
+    organizationCode: string,
+    username: string,
+    _password?: string
+  ): { success: boolean; error?: string; user?: User } {
+    if (isSupabaseConfigured) {
+      return {
+        success: false,
+        error: 'Supabase mode is active. Use async login (loginAsync).',
+      };
+    }
+
     const trimmedOrgCode = organizationCode.trim().toUpperCase();
     const trimmedUser = username.trim().toLowerCase();
 
-    // Special case for Super Admin (no org code needed or code is 'SUPER' / 'SYSTEM')
     if (trimmedUser === 'superadmin' || trimmedOrgCode === 'SUPER' || trimmedOrgCode === 'ADMIN') {
       const superAdmin = db.users.find((u) => u.role === 'super_admin');
       if (superAdmin) {
         this.setUser(superAdmin);
-        db.logAudit(superAdmin.id, superAdmin.name, 'LOGIN', 'User', superAdmin.id, undefined, 'Super Admin logged in');
+        db.logAudit(
+          superAdmin.id,
+          superAdmin.name,
+          'LOGIN',
+          'User',
+          superAdmin.id,
+          undefined,
+          'Super Admin logged in'
+        );
         return { success: true, user: superAdmin };
       }
     }
 
-    // Match Organization Code
-    const org = db.organizations.find((o) => o.organization_code.toUpperCase() === trimmedOrgCode);
+    const org = db.organizations.find(
+      (o) => o.organization_code.toUpperCase() === trimmedOrgCode
+    );
     if (!org) {
-      return { success: false, error: `Invalid Organization Code "${trimmedOrgCode}". Please verify with your property administration.` };
+      return {
+        success: false,
+        error: `Invalid Organisation Code "${trimmedOrgCode}". Please verify with your property administration.`,
+      };
     }
 
     if (org.status === 'Pending Approval') {
-      return { success: false, error: `Organization "${org.company_name}" is currently Pending Approval from the Super Admin.` };
+      return {
+        success: false,
+        error: `Organisation "${org.company_name}" is currently Pending Approval from the Super Admin.`,
+      };
     }
 
     if (org.status === 'Suspended' || org.status === 'Rejected') {
-      return { success: false, error: `Organization account is inactive (${org.status}). Please contact support.` };
+      return {
+        success: false,
+        error: `Organisation account is inactive (${org.status}). Please contact support.`,
+      };
     }
 
-    // Match User in this Organization
     const user = db.users.find(
       (u) =>
         u.organization_id === org.id &&
@@ -92,7 +150,10 @@ class AuthService {
     );
 
     if (!user) {
-      return { success: false, error: `User "${username}" not found in organization ${org.company_name}.` };
+      return {
+        success: false,
+        error: `User "${username}" not found in organisation ${org.company_name}.`,
+      };
     }
 
     if (user.status !== 'Active') {
@@ -100,13 +161,52 @@ class AuthService {
     }
 
     this.setUser(user);
-    db.logAudit(user.id, user.name, 'LOGIN', 'User', user.id, org.id, `User logged into ${org.company_name}`);
+    db.logAudit(
+      user.id,
+      user.name,
+      'LOGIN',
+      'User',
+      user.id,
+      org.id,
+      `User logged into ${org.company_name}`
+    );
     return { success: true, user };
   }
 
-  public logout() {
-    if (this.currentUser) {
-      db.logAudit(this.currentUser.id, this.currentUser.name, 'LOGOUT', 'User', this.currentUser.id, this.currentUser.organization_id);
+  /** Phase 2 dual-mode login: Supabase when configured, otherwise demo layer. */
+  public async loginAsync(
+    organizationCode: string,
+    username: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string; user?: User }> {
+    if (isSupabaseConfigured) {
+      const result = await supabaseLogin(organizationCode, username, password || 'password');
+      if (result.success && result.user) {
+        this.currentUser = result.user;
+        this.currentOrg = result.organization || null;
+        localStorage.setItem(AUTH_STORAGE_KEY, result.user.id);
+        this.notify();
+        return { success: true, user: result.user };
+      }
+      return { success: false, error: result.error || 'Login failed' };
+    }
+
+    return this.login(organizationCode, username, password);
+  }
+
+  public async logout() {
+    if (this.currentUser && !isSupabaseConfigured) {
+      db.logAudit(
+        this.currentUser.id,
+        this.currentUser.name,
+        'LOGOUT',
+        'User',
+        this.currentUser.id,
+        this.currentUser.organization_id
+      );
+    }
+    if (isSupabaseConfigured) {
+      await supabaseLogout();
     }
     this.currentUser = null;
     this.currentOrg = null;
@@ -115,31 +215,30 @@ class AuthService {
   }
 
   public switchDemoUser(role: UserRole) {
+    if (isSupabaseConfigured) {
+      console.warn('Role switcher is demo-only and disabled in Supabase mode.');
+      return;
+    }
     let target = db.users.find((u) => u.role === role);
-    if (!target) {
-      // Fallback
-      target = db.users[0];
-    }
-    if (target) {
-      this.setUser(target);
-    }
+    if (!target) target = db.users[0];
+    if (target) this.setUser(target);
   }
 
   public switchUserById(userId: string) {
+    if (isSupabaseConfigured) return;
     const user = db.users.find((u) => u.id === userId);
-    if (user) {
-      this.setUser(user);
-    }
+    if (user) this.setUser(user);
   }
 
   private setUser(user: User) {
     this.currentUser = user;
-    this.currentOrg = user.organization_id ? db.organizations.find((o) => o.id === user.organization_id) || null : null;
+    this.currentOrg = user.organization_id
+      ? db.organizations.find((o) => o.id === user.organization_id) || null
+      : null;
     localStorage.setItem(AUTH_STORAGE_KEY, user.id);
     this.notify();
   }
 
-  // ROLE PERMISSION MATRIX (Requirement #63)
   public canCreateTicket(user: User | null): boolean {
     if (!user) return false;
     return ['tenant', 'property_manager', 'admin', 'super_admin'].includes(user.role);
