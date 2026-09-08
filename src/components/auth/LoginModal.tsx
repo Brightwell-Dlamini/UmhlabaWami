@@ -1,29 +1,72 @@
 import React, { useState } from 'react';
-import { X, Lock, Building, User, KeyRound, AlertCircle, ShieldCheck, Check, Sparkles } from 'lucide-react';
+import { X, Lock, Building, User, KeyRound, AlertCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { auth } from '../../services/auth';
-import { UserRole } from '../../types';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenRegisterOrg: () => void;
-  onLoginSuccess: () => void;
+  /** Preferred callback */
+  onOpenRegisterOrg?: () => void;
+  /** Legacy alias used by App.tsx */
+  onRegisterClick?: () => void;
+  onLoginSuccess?: () => void;
 }
+
+const DEMO_ACCOUNTS = [
+  {
+    label: 'Tenant',
+    orgCode: 'GAB-070826',
+    username: 'nandi.tenant',
+  },
+  {
+    label: 'Property Manager',
+    orgCode: 'GAB-070826',
+    username: 'sipho.manager',
+  },
+  {
+    label: 'Maintenance',
+    orgCode: 'GAB-070826',
+    username: 'bheki.maintenance',
+  },
+  {
+    label: 'Finance Lead',
+    orgCode: 'GAB-070826',
+    username: 'thandeka.finance',
+  },
+  {
+    label: 'Client Admin',
+    orgCode: 'GAB-070826',
+    username: 'lindiwe.admin',
+  },
+  {
+    label: 'Super Admin',
+    orgCode: 'SUPER',
+    username: 'superadmin',
+    danger: true,
+  },
+] as const;
 
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
   onOpenRegisterOrg,
+  onRegisterClick,
   onLoginSuccess,
 }) => {
-  const [orgCode, setOrgCode] = useState('EZU-001');
-  const [username, setUsername] = useState('tenant_crafts');
+  const [orgCode, setOrgCode] = useState('GAB-070826');
+  const [username, setUsername] = useState('nandi.tenant');
   const [password, setPassword] = useState('password123');
   const [isCaptchaChecked, setIsCaptchaChecked] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
+
+  const openRegister = () => {
+    onClose();
+    if (onOpenRegisterOrg) onOpenRegisterOrg();
+    else if (onRegisterClick) onRegisterClick();
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,17 +77,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
+    if (!orgCode.trim() || !username.trim()) {
+      setErrorMsg('Organisation code and username are required.');
+      return;
+    }
+
     setLoading(true);
     setTimeout(() => {
       const res = auth.login(orgCode, username, password);
       setLoading(false);
       if (res.success) {
-        onLoginSuccess();
+        onLoginSuccess?.();
         onClose();
       } else {
-        setErrorMsg(res.error || 'Login failed');
+        setErrorMsg(res.error || 'Login failed. Check organisation code and username.');
       }
-    }, 400);
+    }, 350);
   };
 
   const handleQuickDemo = (code: string, user: string) => {
@@ -56,9 +104,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-        {/* Top Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[95vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center">
               <Lock className="w-4 h-4" />
@@ -67,12 +114,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <h3 className="font-bold text-sm text-slate-900 dark:text-white">
                 Sign In to Umhlaba Wami
               </h3>
-              <p className="text-[11px] text-slate-500">Multi-Tenant Operational Access</p>
+              <p className="text-[11px] text-slate-500">Multi-tenant operational access</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -87,13 +135,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           )}
 
           <form onSubmit={handleLogin} className="space-y-3.5">
-            {/* Organization Code */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Organization Code *
+                  Organisation Code *
                 </label>
-                <span className="text-[10px] text-slate-400">e.g. EZU-001 or SUPER</span>
+                <span className="text-[10px] text-slate-400">e.g. GAB-070826 or SUPER</span>
               </div>
               <div className="flex items-center px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-blue-600">
                 <Building className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
@@ -104,11 +151,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   onChange={(e) => setOrgCode(e.target.value.toUpperCase())}
                   placeholder="ORG-CODE"
                   className="w-full bg-transparent text-xs font-mono font-medium text-slate-900 dark:text-white uppercase focus:outline-none"
+                  autoComplete="organization"
                 />
               </div>
             </div>
 
-            {/* Username */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Username or Email *
@@ -122,17 +169,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Username"
                   className="w-full bg-transparent text-xs text-slate-900 dark:text-white focus:outline-none"
+                  autoComplete="username"
                 />
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Password *
                 </label>
-                <span className="text-[10px] text-slate-400">Default demo: password123</span>
+                <span className="text-[10px] text-slate-400">Demo: any value accepted</span>
               </div>
               <div className="flex items-center px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-blue-600">
                 <KeyRound className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
@@ -143,11 +190,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full bg-transparent text-xs text-slate-900 dark:text-white focus:outline-none"
+                  autoComplete="current-password"
                 />
               </div>
             </div>
 
-            {/* CAPTCHA / Robot Verification Requirement #9 */}
             <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
               <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
                 <input
@@ -156,7 +203,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   onChange={(e) => setIsCaptchaChecked(e.target.checked)}
                   className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                 />
-                <span>I am not a robot (reCAPTCHA)</span>
+                <span>I am not a robot (demo verification)</span>
               </label>
               <ShieldCheck className="w-4 h-4 text-slate-400" />
             </div>
@@ -164,86 +211,55 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-600/25 transition flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-600/25 transition flex items-center justify-center gap-1.5"
             >
-              {loading ? (
-                <span>Verifying credentials...</span>
-              ) : (
-                <span>Sign In to Dashboard</span>
-              )}
+              {loading ? 'Verifying credentials…' : 'Sign In to Dashboard'}
             </button>
           </form>
 
-          {/* Quick Demo Pre-fill Shortcuts */}
           <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-amber-500" />
-              <span>One-Click Demo Account Autofill</span>
+              <span>One-click demo accounts (match seed data)</span>
             </div>
             <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('EZU-001', 'tenant_crafts')}
-                className="p-1.5 text-left rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-slate-300 transition"
-              >
-                <div className="font-semibold">Tenant</div>
-                <div className="text-[10px] text-slate-400 font-mono">tenant_crafts</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('EZU-001', 'manager_sipho')}
-                className="p-1.5 text-left rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-slate-300 transition"
-              >
-                <div className="font-semibold">Property Manager</div>
-                <div className="text-[10px] text-slate-400 font-mono">manager_sipho</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('EZU-001', 'maint_bheki')}
-                className="p-1.5 text-left rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-slate-300 transition"
-              >
-                <div className="font-semibold">Maintenance</div>
-                <div className="text-[10px] text-slate-400 font-mono">maint_bheki</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('EZU-001', 'finance_thandeka')}
-                className="p-1.5 text-left rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-slate-300 transition"
-              >
-                <div className="font-semibold">Finance Lead</div>
-                <div className="text-[10px] text-slate-400 font-mono">finance_thandeka</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('EZU-001', 'admin_lindiwe')}
-                className="p-1.5 text-left rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-slate-300 transition"
-              >
-                <div className="font-semibold">Client Admin</div>
-                <div className="text-[10px] text-slate-400 font-mono">admin_lindiwe</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('SUPER', 'superadmin')}
-                className="p-1.5 text-left rounded-lg bg-red-50 dark:bg-red-950/30 hover:bg-red-100 text-red-700 dark:text-red-300 transition"
-              >
-                <div className="font-semibold">Super Admin</div>
-                <div className="text-[10px] text-red-400 font-mono">superadmin</div>
-              </button>
+              {DEMO_ACCOUNTS.map((acct) => (
+                <button
+                  key={acct.username}
+                  type="button"
+                  onClick={() => handleQuickDemo(acct.orgCode, acct.username)}
+                  className={`p-1.5 text-left rounded-lg transition ${
+                    'danger' in acct && acct.danger
+                      ? 'bg-red-50 dark:bg-red-950/30 hover:bg-red-100 text-red-700 dark:text-red-300'
+                      : 'bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className="font-semibold">{acct.label}</div>
+                  <div
+                    className={`text-[10px] font-mono ${
+                      'danger' in acct && acct.danger ? 'text-red-400' : 'text-slate-400'
+                    }`}
+                  >
+                    {acct.username}
+                  </div>
+                </button>
+              ))}
             </div>
+            <p className="mt-2 text-[10px] text-slate-400 leading-relaxed">
+              Organisation code <span className="font-mono text-slate-500">GAB-070826</span> (Ezulwini
+              Commercial Holdings). Super Admin uses code{' '}
+              <span className="font-mono text-slate-500">SUPER</span>.
+            </p>
           </div>
 
-          {/* Registration link */}
           <div className="pt-1 text-center text-xs text-slate-500">
-            <span>Commercial Property Owner or Landlord? </span>
+            <span>Commercial property owner or landlord? </span>
             <button
               type="button"
-              onClick={() => {
-                onClose();
-                onOpenRegisterOrg();
-              }}
+              onClick={openRegister}
               className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
             >
-              Register Organization
+              Register Organisation
             </button>
           </div>
         </div>
