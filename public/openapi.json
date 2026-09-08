@@ -1,0 +1,56 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Umhlaba Wami Partner API",
+    "version": "1.0.0",
+    "description": "Partner-facing read/write endpoints for commercial property operations in Eswatini. Demo implementation is client-side against the dual-mode data layer; production maps these paths to Supabase Edge Functions or a dedicated API gateway."
+  },
+  "servers": [{ "url": "https://api.umhlaba.wami/v1", "description": "Production (planned)" }],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Service health",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/organizations/{orgCode}/units": {
+      "get": {
+        "summary": "List units",
+        "parameters": [{ "name": "orgCode", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Unit list" } }
+      }
+    },
+    "/organizations/{orgCode}/tickets": {
+      "get": {
+        "summary": "List tickets",
+        "responses": { "200": { "description": "Tickets" } }
+      },
+      "post": {
+        "summary": "Create ticket",
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/organizations/{orgCode}/rent-roll": {
+      "get": {
+        "summary": "Rent roll snapshot",
+        "responses": { "200": { "description": "Rent roll rows" } }
+      }
+    },
+    "/organizations/{orgCode}/webhooks": {
+      "post": {
+        "summary": "Register webhook endpoint",
+        "responses": { "201": { "description": "Registered" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Umhlaba-Api-Key"
+      }
+    }
+  },
+  "security": [{ "ApiKeyAuth": [] }]
+}
