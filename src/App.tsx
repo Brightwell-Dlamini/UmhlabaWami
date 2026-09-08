@@ -35,6 +35,10 @@ import { AiAssistView } from './components/dashboard/AiAssistView';
 import { PermissionsView } from './components/dashboard/PermissionsView';
 import { ComplianceAuditView } from './components/dashboard/ComplianceAuditView';
 import { NotificationCentreView } from './components/dashboard/NotificationCentreView';
+import { PartnerApiView } from './components/dashboard/PartnerApiView';
+import { WhiteLabelView } from './components/dashboard/WhiteLabelView';
+import { PlatformHealthView } from './components/dashboard/PlatformHealthView';
+import { OfflineBanner } from './components/system/OfflineBanner';
 import { CreateTicketWizard } from './components/tickets/CreateTicketWizard';
 import { TicketDetailModal } from './components/tickets/TicketDetailModal';
 import { PropertyDetailModal } from './components/marketplace/PropertyDetailModal';
@@ -44,13 +48,14 @@ import { LoginModal } from './components/auth/LoginModal';
 import { RegisterOrgModal } from './components/auth/RegisterOrgModal';
 import { auth } from './services/auth';
 import { db } from './services/db';
+import { branding } from './services/brandingService';
 import { Property, Shop, UserRole } from './types';
 import { CheckCircle2, Radio } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(auth.getCurrentUser());
   const [viewMode, setViewMode] = useState<'marketplace' | 'dashboard'>('marketplace');
-  const [sidebarActiveTab, setSidebarActiveTab] = useState<string>('overview');
+  const [sidebarActiveTab, setSidebarActiveTab] = useState('overview');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOrgOpen, setIsRegisterOrgOpen] = useState(false);
@@ -88,26 +93,23 @@ export default function App() {
 
   const getDefaultTabForRole = (role?: UserRole): string => {
     switch (role) {
-      case 'tenant':
-        return 'tenant_overview';
-      case 'property_manager':
-        return 'centre_pulse';
-      case 'maintenance':
-        return 'maintenance_jobs';
-      case 'finance':
-        return 'rent_roll_arrears';
-      case 'admin':
-        return 'centre_pulse';
-      case 'super_admin':
-        return 'super_overview';
-      default:
-        return 'overview';
+      case 'tenant': return 'tenant_overview';
+      case 'property_manager': return 'centre_pulse';
+      case 'maintenance': return 'maintenance_jobs';
+      case 'finance': return 'rent_roll_arrears';
+      case 'admin': return 'centre_pulse';
+      case 'super_admin': return 'super_overview';
+      default: return 'overview';
     }
   };
 
   useEffect(() => {
     if (currentUser?.role) setSidebarActiveTab(getDefaultTabForRole(currentUser.role));
   }, [currentUser?.role, currentUser?.id]);
+
+  useEffect(() => {
+    branding.applyForOrganization(currentUser?.organization_id);
+  }, [currentUser?.organization_id]);
 
   const handleTabChange = (tab: string) => {
     if (tab === 'report_issue') setIsCreateTicketOpen(true);
@@ -123,32 +125,29 @@ export default function App() {
   );
 
   const renderDashboard = () => {
-    if (sidebarActiveTab === 'centre_pulse') {
+    if (sidebarActiveTab === 'centre_pulse')
       return <CentrePulseView onViewTicket={(id) => setSelectedTicketId(id)} onNavigate={handleTabChange} />;
-    }
     if (sidebarActiveTab === 'sla_config') return <SlaConfigView />;
     if (sidebarActiveTab === 'preventive') return <PreventiveMaintenanceView />;
     if (sidebarActiveTab === 'leasing_pipeline') return <LeasingPipelineView />;
     if (sidebarActiveTab === 'rent_roll_arrears') return <RentRollArrearsView />;
     if (sidebarActiveTab === 'deposits') return <DepositLedgerView />;
     if (sidebarActiveTab === 'board_pack') return <BoardPackView />;
-    if (sidebarActiveTab === 'subscription_billing' || sidebarActiveTab === 'super_subscriptions') {
+    if (sidebarActiveTab === 'subscription_billing' || sidebarActiveTab === 'super_subscriptions')
       return <SubscriptionBillingView />;
-    }
-    if (sidebarActiveTab === 'portfolio_intelligence') {
+    if (sidebarActiveTab === 'portfolio_intelligence')
       return <PortfolioIntelligenceView onViewTicket={(id) => setSelectedTicketId(id)} />;
-    }
-    if (sidebarActiveTab === 'ai_assist') {
+    if (sidebarActiveTab === 'ai_assist')
       return <AiAssistView onViewTicket={(id) => setSelectedTicketId(id)} />;
-    }
     if (sidebarActiveTab === 'permissions') return <PermissionsView />;
-    if (sidebarActiveTab === 'compliance_audit' || sidebarActiveTab === 'audit_logs') {
+    if (sidebarActiveTab === 'compliance_audit' || sidebarActiveTab === 'audit_logs')
       return <ComplianceAuditView />;
-    }
-    if (sidebarActiveTab === 'notifications') {
+    if (sidebarActiveTab === 'notifications')
       return <NotificationCentreView onOpenTicket={(id) => setSelectedTicketId(id)} />;
-    }
-    if (sidebarActiveTab === 'properties' || sidebarActiveTab === 'units') {
+    if (sidebarActiveTab === 'partner_api') return <PartnerApiView />;
+    if (sidebarActiveTab === 'white_label') return <WhiteLabelView />;
+    if (sidebarActiveTab === 'platform_health') return <PlatformHealthView />;
+    if (sidebarActiveTab === 'properties' || sidebarActiveTab === 'units')
       return (
         <UnitsDirectoryView
           onSelectShop={(shop) => {
@@ -158,13 +157,8 @@ export default function App() {
           }}
         />
       );
-    }
     if (sidebarActiveTab === 'leases' || sidebarActiveTab === 'tenant_lease') return <LeaseManagementView />;
-    if (
-      ['manager_tickets', 'tenant_tickets', 'maintenance_jobs', 'maintenance_completed'].includes(
-        sidebarActiveTab
-      )
-    ) {
+    if (['manager_tickets', 'tenant_tickets', 'maintenance_jobs', 'maintenance_completed'].includes(sidebarActiveTab))
       return (
         <TicketsListView
           onViewTicket={(id) => setSelectedTicketId(id)}
@@ -172,18 +166,15 @@ export default function App() {
           filterRole={sidebarActiveTab}
         />
       );
-    }
-    if (sidebarActiveTab === 'maintenance_ops') {
+    if (sidebarActiveTab === 'maintenance_ops')
       return <MaintenancePortal onViewTicket={(id) => setSelectedTicketId(id)} />;
-    }
-    if (sidebarActiveTab === 'tenants_list') {
+    if (sidebarActiveTab === 'tenants_list')
       return (
         <TenantsListView
           onOpenCreateTicketForShop={() => setIsCreateTicketOpen(true)}
           onViewLeases={() => setSidebarActiveTab('leases')}
         />
       );
-    }
     if (sidebarActiveTab === 'staff_schedule') return <StaffScheduleView />;
     if (sidebarActiveTab === 'vendors') return <VendorsView />;
     if (sidebarActiveTab === 'announcements') return <AnnouncementsView />;
@@ -192,51 +183,16 @@ export default function App() {
     if (sidebarActiveTab === 'tenant_documents') return <TenantDocumentsView />;
     if (sidebarActiveTab === 'org_users' || sidebarActiveTab === 'super_users') return <OrgUsersView />;
     if (sidebarActiveTab === 'org_settings') return <OrgSettingsView />;
-    if (
-      [
-        'finance',
-        'finance_overview',
-        'rent_roll',
-        'expenses_ledger',
-        'transactions',
-        'financial_requests',
-        'finance_documents',
-      ].includes(sidebarActiveTab)
-    ) {
+    if (['finance', 'finance_overview', 'rent_roll', 'expenses_ledger', 'transactions', 'financial_requests', 'finance_documents'].includes(sidebarActiveTab))
       return <FinancePortal initialTab={sidebarActiveTab} />;
-    }
-    if (
-      [
-        'super_admin',
-        'super_overview',
-        'super_approvals',
-        'super_organizations',
-        'super_listings',
-        'db_backup',
-      ].includes(sidebarActiveTab) ||
-      currentUser?.role === 'super_admin'
-    ) {
+    if (['super_admin', 'super_overview', 'super_approvals', 'super_organizations', 'super_listings', 'db_backup'].includes(sidebarActiveTab) || currentUser?.role === 'super_admin')
       return <SuperAdminPortal initialTab={sidebarActiveTab} />;
-    }
-    if (currentUser?.role === 'tenant') {
-      return (
-        <TenantDashboard
-          onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
-          onViewTicket={(id) => setSelectedTicketId(id)}
-        />
-      );
-    }
-    if (currentUser?.role === 'property_manager' || currentUser?.role === 'admin') {
-      return (
-        <CentrePulseView
-          onViewTicket={(id) => setSelectedTicketId(id)}
-          onNavigate={handleTabChange}
-        />
-      );
-    }
-    if (currentUser?.role === 'maintenance') {
+    if (currentUser?.role === 'tenant')
+      return <TenantDashboard onOpenCreateTicket={() => setIsCreateTicketOpen(true)} onViewTicket={(id) => setSelectedTicketId(id)} />;
+    if (currentUser?.role === 'property_manager' || currentUser?.role === 'admin')
+      return <CentrePulseView onViewTicket={(id) => setSelectedTicketId(id)} onNavigate={handleTabChange} />;
+    if (currentUser?.role === 'maintenance')
       return <MaintenancePortal onViewTicket={(id) => setSelectedTicketId(id)} />;
-    }
     if (currentUser?.role === 'finance') return <RentRollArrearsView />;
     return (
       <ManagerDashboard
@@ -249,16 +205,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+      <OfflineBanner />
       {viewMode === 'dashboard' && currentUser && activeEmergency && (
         <div className="bg-red-600 text-white px-4 py-2 text-xs font-semibold shadow-md z-40">
           <div className="flex items-center gap-2 max-w-7xl mx-auto w-full">
             <Radio className="w-4 h-4 animate-pulse shrink-0" />
-            <span className="font-bold uppercase tracking-wider text-[10px] bg-red-800 px-1.5 py-0.5 rounded">
-              Center Alert
-            </span>
-            <span className="truncate">
-              <strong>{activeEmergency.title}:</strong> {activeEmergency.message}
-            </span>
+            <span className="font-bold uppercase tracking-wider text-[10px] bg-red-800 px-1.5 py-0.5 rounded">Center Alert</span>
+            <span className="truncate"><strong>{activeEmergency.title}:</strong> {activeEmergency.message}</span>
           </div>
         </div>
       )}
@@ -269,10 +222,8 @@ export default function App() {
           if (view === 'marketplace' || view === 'how_it_works' || view === 'solutions') {
             setViewMode('marketplace');
             setTimeout(() => {
-              if (view === 'how_it_works')
-                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-              else if (view === 'solutions')
-                document.getElementById('enterprise-features')?.scrollIntoView({ behavior: 'smooth' });
+              if (view === 'how_it_works') document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+              else if (view === 'solutions') document.getElementById('enterprise-features')?.scrollIntoView({ behavior: 'smooth' });
               else window.scrollTo({ top: 0, behavior: 'smooth' });
             }, 50);
           } else setViewMode('dashboard');
@@ -293,14 +244,8 @@ export default function App() {
         {viewMode === 'marketplace' ? (
           <main className="flex-1">
             <MarketplaceView
-              onSelectProperty={(prop, shop) => {
-                setSelectedProperty(prop);
-                setSelectedShop(shop || null);
-              }}
-              onEnquire={(prop, shop) => {
-                setEnquiryProperty(prop);
-                setEnquiryShop(shop || null);
-              }}
+              onSelectProperty={(prop, shop) => { setSelectedProperty(prop); setSelectedShop(shop || null); }}
+              onEnquire={(prop, shop) => { setEnquiryProperty(prop); setEnquiryShop(shop || null); }}
               onOpenListLead={() => setIsListLeadOpen(true)}
               onManageClick={() => setViewMode('dashboard')}
             />
@@ -313,16 +258,8 @@ export default function App() {
                 activeTab={sidebarActiveTab}
                 onTabChange={handleTabChange}
                 onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
-                organizationName={
-                  currentUser?.organization_id
-                    ? db.organizations.find((o) => o.id === currentUser.organization_id)?.company_name
-                    : undefined
-                }
-                orgCode={
-                  currentUser?.organization_id
-                    ? db.organizations.find((o) => o.id === currentUser.organization_id)?.organization_code
-                    : undefined
-                }
+                organizationName={currentUser?.organization_id ? db.organizations.find((o) => o.id === currentUser.organization_id)?.company_name : undefined}
+                orgCode={currentUser?.organization_id ? db.organizations.find((o) => o.id === currentUser.organization_id)?.organization_code : undefined}
               />
             </div>
             <div className="flex-1 min-w-0">{renderDashboard()}</div>
@@ -331,12 +268,7 @@ export default function App() {
       </div>
 
       {viewMode === 'dashboard' && currentUser && (
-        <MobileBottomNav
-          role={currentUser.role}
-          activeTab={sidebarActiveTab}
-          onTabChange={handleTabChange}
-          onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
-        />
+        <MobileBottomNav role={currentUser.role} activeTab={sidebarActiveTab} onTabChange={handleTabChange} onOpenCreateTicket={() => setIsCreateTicketOpen(true)} />
       )}
 
       <Footer />
@@ -351,78 +283,14 @@ export default function App() {
         </div>
       )}
 
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        onRegisterClick={() => {
-          setIsLoginOpen(false);
-          setIsRegisterOrgOpen(true);
-        }}
-        onLoginSuccess={() => showToast('Welcome back', 'You are signed in to your operational dashboard.')}
-      />
-      <RegisterOrgModal
-        isOpen={isRegisterOrgOpen}
-        onClose={() => setIsRegisterOrgOpen(false)}
-        onSuccess={() =>
-          showToast(
-            'Registration Submitted',
-            'Your commercial landlord application has been submitted for Super Admin approval.'
-          )
-        }
-      />
-      <PropertyDetailModal
-        property={selectedProperty}
-        shop={selectedShop}
-        onClose={() => {
-          setSelectedProperty(null);
-          setSelectedShop(null);
-        }}
-        onEnquire={(prop, shop) => {
-          setSelectedProperty(null);
-          setSelectedShop(null);
-          setEnquiryProperty(prop);
-          setEnquiryShop(shop || null);
-        }}
-      />
-      <PropertyEnquiryModal
-        property={enquiryProperty}
-        shop={enquiryShop}
-        isOpen={!!enquiryProperty}
-        onClose={() => {
-          setEnquiryProperty(null);
-          setEnquiryShop(null);
-        }}
-        onSuccess={() =>
-          showToast(
-            'Inquiry Submitted',
-            'The center property manager has received your commercial leasing application.'
-          )
-        }
-      />
-      <ListPropertyLeadModal
-        isOpen={isListLeadOpen}
-        onClose={() => setIsListLeadOpen(false)}
-        onSuccess={() =>
-          showToast('Commercial Listing Received', 'Our onboarding team will contact you within 24 hours.')
-        }
-      />
-      <CreateTicketWizard
-        isOpen={isCreateTicketOpen}
-        onClose={() => setIsCreateTicketOpen(false)}
-        onSuccess={(ticketNumber) =>
-          showToast('Ticket Dispatched!', `Ticket #${ticketNumber} created with active SLA countdown.`)
-        }
-      />
-      <TicketDetailModal
-        ticketId={selectedTicketId}
-        onClose={() => setSelectedTicketId(null)}
-        onRefresh={() => showToast('Ticket Updated', 'Maintenance status and audit trail saved successfully.')}
-      />
-      <BroadcastModal
-        isOpen={isBroadcastOpen}
-        onClose={() => setIsBroadcastOpen(false)}
-        onSent={() => showToast('Broadcast Sent', 'Emergency center alert is now active across all screens.')}
-      />
+      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} onRegisterClick={() => { setIsLoginOpen(false); setIsRegisterOrgOpen(true); }} onLoginSuccess={() => showToast('Welcome back', 'You are signed in to your operational dashboard.')} />
+      <RegisterOrgModal isOpen={isRegisterOrgOpen} onClose={() => setIsRegisterOrgOpen(false)} onSuccess={() => showToast('Registration Submitted', 'Your commercial landlord application has been submitted for Super Admin approval.')} />
+      <PropertyDetailModal property={selectedProperty} shop={selectedShop} onClose={() => { setSelectedProperty(null); setSelectedShop(null); }} onEnquire={(prop, shop) => { setSelectedProperty(null); setSelectedShop(null); setEnquiryProperty(prop); setEnquiryShop(shop || null); }} />
+      <PropertyEnquiryModal property={enquiryProperty} shop={enquiryShop} isOpen={!!enquiryProperty} onClose={() => { setEnquiryProperty(null); setEnquiryShop(null); }} onSuccess={() => showToast('Inquiry Submitted', 'The center property manager has received your commercial leasing application.')} />
+      <ListPropertyLeadModal isOpen={isListLeadOpen} onClose={() => setIsListLeadOpen(false)} onSuccess={() => showToast('Commercial Listing Received', 'Our onboarding team will contact you within 24 hours.')} />
+      <CreateTicketWizard isOpen={isCreateTicketOpen} onClose={() => setIsCreateTicketOpen(false)} onSuccess={(ticketNumber) => showToast('Ticket Dispatched!', `Ticket #${ticketNumber} created with active SLA countdown.`)} />
+      <TicketDetailModal ticketId={selectedTicketId} onClose={() => setSelectedTicketId(null)} onRefresh={() => showToast('Ticket Updated', 'Maintenance status and audit trail saved successfully.')} />
+      <BroadcastModal isOpen={isBroadcastOpen} onClose={() => setIsBroadcastOpen(false)} onSent={() => showToast('Broadcast Sent', 'Emergency center alert is now active across all screens.')} />
     </div>
   );
 }
