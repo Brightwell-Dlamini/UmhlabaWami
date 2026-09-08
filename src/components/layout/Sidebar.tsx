@@ -26,6 +26,9 @@ import {
   Activity,
   Shield,
   Sliders,
+  Kanban,
+  Wallet,
+  FileBarChart,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -66,17 +69,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'property_manager':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
-          { id: 'manager_overview', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban },
           { id: 'properties', label: 'Properties & Centers', icon: Building },
           { id: 'manager_tickets', label: 'Tickets & SLAs', icon: Ticket },
           { id: 'maintenance_ops', label: 'Maintenance Ops', icon: Wrench },
           { id: 'preventive', label: 'Preventive PM', icon: Calendar },
           { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
           { id: 'tenants_list', label: 'Tenants', icon: Users },
+          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign },
+          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
           { id: 'staff_schedule', label: 'Roster & Shifts', icon: Calendar },
           { id: 'vendors', label: 'Vendors', icon: Truck },
           { id: 'announcements', label: 'Announcements', icon: Megaphone },
-          { id: 'analytics_reports', label: 'Analytics & Reports', icon: BarChart3 },
           { id: 'messages', label: 'Messages', icon: MessageSquare },
         ];
       case 'maintenance':
@@ -88,8 +92,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
       case 'finance':
         return [
-          { id: 'finance_overview', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'rent_roll', label: 'Rent Roll', icon: DollarSign },
+          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, highlight: true },
+          { id: 'deposits', label: 'Deposit Ledger', icon: Wallet },
+          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
           { id: 'expenses_ledger', label: 'Expenses Ledger', icon: Receipt },
           { id: 'transactions', label: 'Transactions', icon: ArrowDownUp },
           { id: 'financial_requests', label: 'Petty Cash & Requests', icon: CreditCard },
@@ -99,18 +104,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'admin':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
-          { id: 'admin_overview', label: 'Org Dashboard', icon: LayoutDashboard },
+          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban },
           { id: 'properties', label: 'Properties & Units', icon: Building },
           { id: 'tenants_list', label: 'Tenants Directory', icon: Users },
           { id: 'org_users', label: 'Staff & Roles', icon: Users },
           { id: 'manager_tickets', label: 'All Tickets', icon: Ticket },
+          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign },
+          { id: 'deposits', label: 'Deposits', icon: Wallet },
+          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
           { id: 'preventive', label: 'Preventive PM', icon: Calendar },
           { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
           { id: 'staff_schedule', label: 'Staff Rostering', icon: Calendar },
           { id: 'vendors', label: 'Vendors', icon: Truck },
-          { id: 'finance_overview', label: 'Finances', icon: DollarSign },
           { id: 'announcements', label: 'Announcements', icon: Megaphone },
-          { id: 'analytics_reports', label: 'Export Reports', icon: BarChart3 },
           { id: 'org_settings', label: 'Branding & Settings', icon: Settings },
         ];
       case 'super_admin':
@@ -118,9 +124,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'super_overview', label: 'Platform Dashboard', icon: LayoutDashboard },
           { id: 'super_approvals', label: 'Org Approvals', icon: ShieldCheck, badgeCount: 'Pending' },
           { id: 'super_organizations', label: 'All Organizations', icon: Layers },
+          { id: 'subscription_billing', label: 'Subscription Billing', icon: CreditCard },
           { id: 'super_listings', label: 'Marketplace Vacancies', icon: Store },
           { id: 'super_users', label: 'User Directory', icon: Users },
-          { id: 'super_subscriptions', label: 'Subscription Tiers', icon: Sliders },
           { id: 'analytics_reports', label: 'Global Analytics', icon: BarChart3 },
           { id: 'audit_logs', label: 'System Audit Trail', icon: History },
           { id: 'db_backup', label: 'Database Backup', icon: Settings },
@@ -206,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-900 animate-pulse" />
           </div>
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 3 · Operations Excellence</p>
+          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 4 · Commercial Engine</p>
         </div>
       )}
     </aside>
