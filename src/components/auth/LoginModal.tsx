@@ -5,45 +5,18 @@ import { auth } from '../../services/auth';
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Preferred callback */
   onOpenRegisterOrg?: () => void;
-  /** Legacy alias used by App.tsx */
   onRegisterClick?: () => void;
   onLoginSuccess?: () => void;
 }
 
 const DEMO_ACCOUNTS = [
-  {
-    label: 'Tenant',
-    orgCode: 'GAB-070826',
-    username: 'nandi.tenant',
-  },
-  {
-    label: 'Property Manager',
-    orgCode: 'GAB-070826',
-    username: 'sipho.manager',
-  },
-  {
-    label: 'Maintenance',
-    orgCode: 'GAB-070826',
-    username: 'bheki.maintenance',
-  },
-  {
-    label: 'Finance Lead',
-    orgCode: 'GAB-070826',
-    username: 'thandeka.finance',
-  },
-  {
-    label: 'Client Admin',
-    orgCode: 'GAB-070826',
-    username: 'lindiwe.admin',
-  },
-  {
-    label: 'Super Admin',
-    orgCode: 'SUPER',
-    username: 'superadmin',
-    danger: true,
-  },
+  { label: 'Tenant', orgCode: 'GAB-070826', username: 'nandi.tenant' },
+  { label: 'Property Manager', orgCode: 'GAB-070826', username: 'sipho.manager' },
+  { label: 'Maintenance', orgCode: 'GAB-070826', username: 'bheki.maintenance' },
+  { label: 'Finance Lead', orgCode: 'GAB-070826', username: 'thandeka.finance' },
+  { label: 'Client Admin', orgCode: 'GAB-070826', username: 'lindiwe.admin' },
+  { label: 'Super Admin', orgCode: 'SUPER', username: 'superadmin', danger: true },
 ] as const;
 
 export const LoginModal: React.FC<LoginModalProps> = ({
@@ -68,7 +41,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     else if (onRegisterClick) onRegisterClick();
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -83,16 +56,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
 
     setLoading(true);
-    setTimeout(() => {
-      const res = auth.login(orgCode, username, password);
-      setLoading(false);
+    try {
+      const res = await auth.loginAsync(orgCode, username, password);
       if (res.success) {
         onLoginSuccess?.();
         onClose();
       } else {
         setErrorMsg(res.error || 'Login failed. Check organisation code and username.');
       }
-    }, 350);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Unexpected login error.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleQuickDemo = (code: string, user: string) => {
@@ -111,17 +87,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <Lock className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                Sign In to Umhlaba Wami
-              </h3>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Sign In to Umhlaba Wami</h3>
               <p className="text-[11px] text-slate-500">Multi-tenant operational access</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            aria-label="Close"
-          >
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -137,9 +107,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <form onSubmit={handleLogin} className="space-y-3.5">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Organisation Code *
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Organisation Code *</label>
                 <span className="text-[10px] text-slate-400">e.g. GAB-070826 or SUPER</span>
               </div>
               <div className="flex items-center px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-blue-600">
@@ -157,9 +125,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Username or Email *
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Username or Email *</label>
               <div className="flex items-center px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-blue-600">
                 <User className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
                 <input
@@ -176,10 +142,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Password *
-                </label>
-                <span className="text-[10px] text-slate-400">Demo: any value accepted</span>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Password *</label>
+                <span className="text-[10px] text-slate-400">Demo: any value · Supabase: real password</span>
               </div>
               <div className="flex items-center px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-blue-600">
                 <KeyRound className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
@@ -211,7 +175,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-600/25 transition flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-600/25 transition"
             >
               {loading ? 'Verifying credentials…' : 'Sign In to Dashboard'}
             </button>
@@ -235,30 +199,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   }`}
                 >
                   <div className="font-semibold">{acct.label}</div>
-                  <div
-                    className={`text-[10px] font-mono ${
-                      'danger' in acct && acct.danger ? 'text-red-400' : 'text-slate-400'
-                    }`}
-                  >
+                  <div className={`text-[10px] font-mono ${'danger' in acct && acct.danger ? 'text-red-400' : 'text-slate-400'}`}>
                     {acct.username}
                   </div>
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[10px] text-slate-400 leading-relaxed">
-              Organisation code <span className="font-mono text-slate-500">GAB-070826</span> (Ezulwini
-              Commercial Holdings). Super Admin uses code{' '}
-              <span className="font-mono text-slate-500">SUPER</span>.
-            </p>
           </div>
 
           <div className="pt-1 text-center text-xs text-slate-500">
             <span>Commercial property owner or landlord? </span>
-            <button
-              type="button"
-              onClick={openRegister}
-              className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
-            >
+            <button type="button" onClick={openRegister} className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
               Register Organisation
             </button>
           </div>
