@@ -1,7 +1,7 @@
 # Umhlaba Wami — Product Roadmap & Phased Delivery Plan
 
 **Vision Statement**  
-Umhlaba Wami will become the definitive digital operating system for commercial real estate in the Kingdom of Eswatini — combining a vibrant vacant-space marketplace with an enterprise-grade property operations platform.
+Umhlaba Wami will become the definitive digital operating system for commercial real estate in the Kingdom of Eswatini.
 
 ---
 
@@ -13,28 +13,28 @@ Umhlaba Wami will become the definitive digital operating system for commercial 
 | **2** | Real Backend | Dual-mode Supabase, Auth, RLS, Vercel | **Complete** (activate with keys) |
 | **3** | Operations Excellence | Centre Pulse, SLA, escalation, PM, vendors | **Complete** |
 | **4** | Commercial & Marketplace | Pipeline, rent roll, deposits, board packs, billing | **Complete** |
-| **5** | Intelligence & Scale | Analytics, AI assist, permissions, compliance | Planned |
+| **5** | Intelligence & Scale | Analytics, AI assist, permissions, compliance | **Complete** |
 | **6** | Ecosystem & Polish | APIs, partners, white-label, PWA | Planned |
 
-Completion records: [PHASE1](./PHASE1_COMPLETION.md) · [PHASE2](./PHASE2_COMPLETION.md) · [PHASE3](./PHASE3_COMPLETION.md) · [PHASE4](./PHASE4_COMPLETION.md)
+Completion: [P1](./PHASE1_COMPLETION.md) · [P2](./PHASE2_COMPLETION.md) · [P3](./PHASE3_COMPLETION.md) · [P4](./PHASE4_COMPLETION.md) · [P5](./PHASE5_COMPLETION.md)
 
 **Live:** https://umhlaba-wami.vercel.app
 
 ---
 
-## Phase 4 — Commercial Engine ✅ Complete
+## Phase 5 — Intelligence & Scale ✅ Complete
 
-- Leasing pipeline kanban with convert-to-lease
-- Rent roll, arrears aging, payment recording
-- Deposit ledger (hold / refund / forfeit)
-- Board pack snapshot + export
-- Organisation subscription billing & tier changes
+- Portfolio health score and anomaly detection from live data
+- AI-assisted ticket triage + NL search (rule-based, offline-capable)
+- Granular permission catalog with per-user overrides
+- Compliance audit trail with CSV export and POPIA guidance
+- Notification centre (read / mark all)
 
 ---
 
-## Phase 5 — Intelligence & Scale (Next)
+## Phase 6 — Ecosystem & Polish (Next)
 
-Portfolio analytics, AI-assisted ticket triage, granular permissions, compliance audit trails, notification centre depth.
+Public/partner API, white-label theming, PWA excellence, continuous reliability.
 
 ---
 
