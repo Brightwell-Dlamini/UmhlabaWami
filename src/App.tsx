@@ -25,6 +25,11 @@ import { OrgSettingsView } from './components/dashboard/OrgSettingsView';
 import { CentrePulseView } from './components/dashboard/CentrePulseView';
 import { SlaConfigView } from './components/dashboard/SlaConfigView';
 import { PreventiveMaintenanceView } from './components/dashboard/PreventiveMaintenanceView';
+import { RentRollArrearsView } from './components/dashboard/RentRollArrearsView';
+import { LeasingPipelineView } from './components/dashboard/LeasingPipelineView';
+import { DepositLedgerView } from './components/dashboard/DepositLedgerView';
+import { BoardPackView } from './components/dashboard/BoardPackView';
+import { SubscriptionBillingView } from './components/dashboard/SubscriptionBillingView';
 import { CreateTicketWizard } from './components/tickets/CreateTicketWizard';
 import { TicketDetailModal } from './components/tickets/TicketDetailModal';
 import { PropertyDetailModal } from './components/marketplace/PropertyDetailModal';
@@ -64,27 +69,16 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (isDarkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
   useEffect(() => {
     const unsubAuth = auth.subscribe((user) => {
       setCurrentUser(user ? { ...user } : null);
-      if (user) {
-        setViewMode('dashboard');
-      } else {
-        setViewMode('marketplace');
-      }
+      setViewMode(user ? 'dashboard' : 'marketplace');
     });
-
-    const unsubDb = db.subscribe(() => {
-      setCurrentUser(auth.getCurrentUser());
-    });
-
+    const unsubDb = db.subscribe(() => setCurrentUser(auth.getCurrentUser()));
     return () => {
       unsubAuth();
       unsubDb();
@@ -100,7 +94,7 @@ export default function App() {
       case 'maintenance':
         return 'maintenance_jobs';
       case 'finance':
-        return 'finance_overview';
+        return 'rent_roll_arrears';
       case 'admin':
         return 'centre_pulse';
       case 'super_admin':
@@ -111,17 +105,12 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (currentUser?.role) {
-      setSidebarActiveTab(getDefaultTabForRole(currentUser.role));
-    }
+    if (currentUser?.role) setSidebarActiveTab(getDefaultTabForRole(currentUser.role));
   }, [currentUser?.role, currentUser?.id]);
 
   const handleTabChange = (tab: string) => {
-    if (tab === 'report_issue') {
-      setIsCreateTicketOpen(true);
-    } else {
-      setSidebarActiveTab(tab);
-    }
+    if (tab === 'report_issue') setIsCreateTicketOpen(true);
+    else setSidebarActiveTab(tab);
   };
 
   const activeEmergency = db.announcements.find(
@@ -135,7 +124,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {viewMode === 'dashboard' && currentUser && activeEmergency && (
-        <div className="bg-red-600 text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-md z-40">
+        <div className="bg-red-600 text-white px-4 py-2 text-xs font-semibold shadow-md z-40">
           <div className="flex items-center gap-2 max-w-7xl mx-auto w-full">
             <Radio className="w-4 h-4 animate-pulse shrink-0" />
             <span className="font-bold uppercase tracking-wider text-[10px] bg-red-800 px-1.5 py-0.5 rounded">
@@ -154,17 +143,11 @@ export default function App() {
           if (view === 'marketplace' || view === 'how_it_works' || view === 'solutions') {
             setViewMode('marketplace');
             setTimeout(() => {
-              if (view === 'how_it_works') {
-                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-              } else if (view === 'solutions') {
-                document.getElementById('enterprise-features')?.scrollIntoView({ behavior: 'smooth' });
-              } else {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
+              if (view === 'how_it_works') document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+              else if (view === 'solutions') document.getElementById('enterprise-features')?.scrollIntoView({ behavior: 'smooth' });
+              else window.scrollTo({ top: 0, behavior: 'smooth' });
             }, 50);
-          } else {
-            setViewMode('dashboard');
-          }
+          } else setViewMode('dashboard');
         }}
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenRegisterOrg={() => setIsRegisterOrgOpen(true)}
@@ -225,21 +208,21 @@ export default function App() {
                     />
                   );
                 }
-
-                if (sidebarActiveTab === 'sla_config') {
-                  return <SlaConfigView />;
-                }
-
-                if (sidebarActiveTab === 'preventive') {
-                  return <PreventiveMaintenanceView />;
+                if (sidebarActiveTab === 'sla_config') return <SlaConfigView />;
+                if (sidebarActiveTab === 'preventive') return <PreventiveMaintenanceView />;
+                if (sidebarActiveTab === 'leasing_pipeline') return <LeasingPipelineView />;
+                if (sidebarActiveTab === 'rent_roll_arrears') return <RentRollArrearsView />;
+                if (sidebarActiveTab === 'deposits') return <DepositLedgerView />;
+                if (sidebarActiveTab === 'board_pack') return <BoardPackView />;
+                if (sidebarActiveTab === 'subscription_billing' || sidebarActiveTab === 'super_subscriptions') {
+                  return <SubscriptionBillingView />;
                 }
 
                 if (sidebarActiveTab === 'properties' || sidebarActiveTab === 'units') {
                   return (
                     <UnitsDirectoryView
                       onSelectShop={(shop) => {
-                        const prop =
-                          db.properties.find((p) => p.id === shop.property_id) || db.properties[0];
+                        const prop = db.properties.find((p) => p.id === shop.property_id) || db.properties[0];
                         setSelectedProperty(prop);
                         setSelectedShop(shop);
                       }}
@@ -279,37 +262,14 @@ export default function App() {
                   );
                 }
 
-                if (sidebarActiveTab === 'staff_schedule') {
-                  return <StaffScheduleView />;
-                }
-
-                if (sidebarActiveTab === 'vendors') {
-                  return <VendorsView />;
-                }
-
-                if (sidebarActiveTab === 'announcements') {
-                  return <AnnouncementsView />;
-                }
-
-                if (sidebarActiveTab === 'messages') {
-                  return <MessagesView />;
-                }
-
-                if (sidebarActiveTab === 'analytics_reports') {
-                  return <AnalyticsReportsView />;
-                }
-
-                if (sidebarActiveTab === 'tenant_documents') {
-                  return <TenantDocumentsView />;
-                }
-
-                if (sidebarActiveTab === 'org_users' || sidebarActiveTab === 'super_users') {
-                  return <OrgUsersView />;
-                }
-
-                if (sidebarActiveTab === 'org_settings') {
-                  return <OrgSettingsView />;
-                }
+                if (sidebarActiveTab === 'staff_schedule') return <StaffScheduleView />;
+                if (sidebarActiveTab === 'vendors') return <VendorsView />;
+                if (sidebarActiveTab === 'announcements') return <AnnouncementsView />;
+                if (sidebarActiveTab === 'messages') return <MessagesView />;
+                if (sidebarActiveTab === 'analytics_reports') return <AnalyticsReportsView />;
+                if (sidebarActiveTab === 'tenant_documents') return <TenantDocumentsView />;
+                if (sidebarActiveTab === 'org_users' || sidebarActiveTab === 'super_users') return <OrgUsersView />;
+                if (sidebarActiveTab === 'org_settings') return <OrgSettingsView />;
 
                 if (
                   sidebarActiveTab === 'finance' ||
@@ -329,7 +289,6 @@ export default function App() {
                   sidebarActiveTab === 'super_approvals' ||
                   sidebarActiveTab === 'super_organizations' ||
                   sidebarActiveTab === 'super_listings' ||
-                  sidebarActiveTab === 'super_subscriptions' ||
                   sidebarActiveTab === 'audit_logs' ||
                   sidebarActiveTab === 'db_backup' ||
                   currentUser?.role === 'super_admin'
@@ -360,7 +319,7 @@ export default function App() {
                 }
 
                 if (currentUser?.role === 'finance') {
-                  return <FinancePortal initialTab="rent_roll" />;
+                  return <RentRollArrearsView />;
                 }
 
                 return (
@@ -388,7 +347,7 @@ export default function App() {
       <Footer />
 
       {toast && (
-        <div className="fixed bottom-24 lg:bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 text-white shadow-2xl border border-slate-700 flex items-center gap-3 animate-in slide-in-from-bottom duration-200 max-w-sm">
+        <div className="fixed bottom-24 lg:bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 text-white shadow-2xl border border-slate-700 flex items-center gap-3 max-w-sm">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
           <div>
             <div className="text-xs font-bold">{toast.title}</div>
@@ -404,20 +363,18 @@ export default function App() {
           setIsLoginOpen(false);
           setIsRegisterOrgOpen(true);
         }}
-        onLoginSuccess={() => {
-          showToast('Welcome back', 'You are signed in to your operational dashboard.');
-        }}
+        onLoginSuccess={() => showToast('Welcome back', 'You are signed in to your operational dashboard.')}
       />
 
       <RegisterOrgModal
         isOpen={isRegisterOrgOpen}
         onClose={() => setIsRegisterOrgOpen(false)}
-        onSuccess={() => {
+        onSuccess={() =>
           showToast(
             'Registration Submitted',
             'Your commercial landlord application has been submitted for Super Admin approval.'
-          );
-        }}
+          )
+        }
       />
 
       <PropertyDetailModal
@@ -443,44 +400,40 @@ export default function App() {
           setEnquiryProperty(null);
           setEnquiryShop(null);
         }}
-        onSuccess={() => {
+        onSuccess={() =>
           showToast(
             'Inquiry Submitted',
             'The center property manager has received your commercial leasing application.'
-          );
-        }}
+          )
+        }
       />
 
       <ListPropertyLeadModal
         isOpen={isListLeadOpen}
         onClose={() => setIsListLeadOpen(false)}
-        onSuccess={() => {
-          showToast('Commercial Listing Received', 'Our onboarding team will contact you within 24 hours.');
-        }}
+        onSuccess={() =>
+          showToast('Commercial Listing Received', 'Our onboarding team will contact you within 24 hours.')
+        }
       />
 
       <CreateTicketWizard
         isOpen={isCreateTicketOpen}
         onClose={() => setIsCreateTicketOpen(false)}
-        onSuccess={(ticketNumber) => {
-          showToast('Ticket Dispatched!', `Ticket #${ticketNumber} created with active SLA countdown.`);
-        }}
+        onSuccess={(ticketNumber) =>
+          showToast('Ticket Dispatched!', `Ticket #${ticketNumber} created with active SLA countdown.`)
+        }
       />
 
       <TicketDetailModal
         ticketId={selectedTicketId}
         onClose={() => setSelectedTicketId(null)}
-        onRefresh={() => {
-          showToast('Ticket Updated', 'Maintenance status and audit trail saved successfully.');
-        }}
+        onRefresh={() => showToast('Ticket Updated', 'Maintenance status and audit trail saved successfully.')}
       />
 
       <BroadcastModal
         isOpen={isBroadcastOpen}
         onClose={() => setIsBroadcastOpen(false)}
-        onSent={() => {
-          showToast('Broadcast Sent', 'Emergency center alert is now active across all screens.');
-        }}
+        onSent={() => showToast('Broadcast Sent', 'Emergency center alert is now active across all screens.')}
       />
     </div>
   );

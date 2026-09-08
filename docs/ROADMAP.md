@@ -9,40 +9,32 @@ Umhlaba Wami will become the definitive digital operating system for commercial 
 
 | Phase | Codename | Primary Goal | Status |
 |-------|----------|--------------|--------|
-| **1** | Foundation | Solid multi-role SPA, domain model, docs | **Complete** |
-| **2** | Real Backend | Dual-mode Supabase foundation, Auth path, RLS schema, Vercel | **Complete** (activate with your keys) |
-| **3** | Operations Excellence | Ticketing depth, SLA matrix, escalation, PM, Centre Pulse, vendors, roster | **Complete** |
-| **4** | Commercial & Marketplace | Leasing lifecycle, rent roll depth, payments, board packs, subscriptions | Planned |
+| **1** | Foundation | Multi-role SPA, domain model, docs | **Complete** |
+| **2** | Real Backend | Dual-mode Supabase, Auth, RLS, Vercel | **Complete** (activate with keys) |
+| **3** | Operations Excellence | Centre Pulse, SLA, escalation, PM, vendors | **Complete** |
+| **4** | Commercial & Marketplace | Pipeline, rent roll, deposits, board packs, billing | **Complete** |
 | **5** | Intelligence & Scale | Analytics, AI assist, permissions, compliance | Planned |
 | **6** | Ecosystem & Polish | APIs, partners, white-label, PWA | Planned |
 
-See [PHASE1_COMPLETION.md](./PHASE1_COMPLETION.md), [PHASE2_COMPLETION.md](./PHASE2_COMPLETION.md), [PHASE3_COMPLETION.md](./PHASE3_COMPLETION.md).
+Completion records: [PHASE1](./PHASE1_COMPLETION.md) · [PHASE2](./PHASE2_COMPLETION.md) · [PHASE3](./PHASE3_COMPLETION.md) · [PHASE4](./PHASE4_COMPLETION.md)
+
+**Live:** https://umhlaba-wami.vercel.app
 
 ---
 
-## Phase 3 — Operations Excellence ✅ Complete
+## Phase 4 — Commercial Engine ✅ Complete
 
-**Objective**  
-A property manager can run a shopping centre’s day-to-day operations without WhatsApp/spreadsheets for core facilities processes.
-
-### Delivered
-- Centre Pulse live command view
-- Configurable organisation SLA matrix (response / resolution / escalate-after)
-- Ticket escalation with priority uplift, deadline reset, notifications
-- Preventive maintenance schedule (due/overdue, complete & reschedule)
-- Preferred vendor matching and vendor callout → ticket
-- Staff roster with On-Call surfaced in Centre Pulse
-- Technician mobile job queue (claim, start, resolve)
-- Announcements / emergency broadcast integration on Pulse
-
-**Definition of Done**  
-Managers and technicians can execute open → assign → escalate → resolve → tenant-confirm loops; SLA policy is editable; preventive work is scheduled and tracked.
+- Leasing pipeline kanban with convert-to-lease
+- Rent roll, arrears aging, payment recording
+- Deposit ledger (hold / refund / forfeit)
+- Board pack snapshot + export
+- Organisation subscription billing & tier changes
 
 ---
 
-## Phase 4 — Commercial Engine & Marketplace (Next)
+## Phase 5 — Intelligence & Scale (Next)
 
-End-to-end leasing pipeline, marketplace growth features, rent roll and arrears depth, deposit workflows, board-pack exports, organisation subscription billing.
+Portfolio analytics, AI-assisted ticket triage, granular permissions, compliance audit trails, notification centre depth.
 
 ---
 
@@ -55,5 +47,3 @@ End-to-end leasing pipeline, marketplace growth features, rent roll and arrears 
 5. Data Ownership  
 6. Security by Design  
 7. Measurable Progress
-
-This roadmap is a living document.
