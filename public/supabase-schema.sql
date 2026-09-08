@@ -1,13 +1,15 @@
 -- ============================================================================
--- UMHLABA WAMI — COMMERCIAL PROPERTY MANAGEMENT & LISTING PLATFORM
--- Production Supabase PostgreSQL Schema & Row-Level Security (RLS) Policies
--- Generated for Shopping Centers & Commercial Portfolios in Eswatini
+-- UMHLABA WAMI — Phase 2 Production Schema + Comprehensive RLS
+-- Run this in the Supabase SQL Editor after creating a new project.
 -- ============================================================================
 
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 1. ORGANIZATIONS TABLE
+-- ---------------------------------------------------------------------------
+-- TABLES
+-- ---------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_code VARCHAR(30) UNIQUE NOT NULL,
@@ -16,20 +18,21 @@ CREATE TABLE IF NOT EXISTS organizations (
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(50) NOT NULL,
     address TEXT NOT NULL,
-    subscription_tier VARCHAR(50) NOT NULL DEFAULT 'Starter', -- Starter, Professional, Enterprise
-    status VARCHAR(50) NOT NULL DEFAULT 'Pending Approval', -- Pending Approval, Active, Suspended, Rejected
+    subscription_tier VARCHAR(50) NOT NULL DEFAULT 'Starter',
+    status VARCHAR(50) NOT NULL DEFAULT 'Pending Approval',
     property_limit INT NOT NULL DEFAULT 3,
     tenant_limit INT NOT NULL DEFAULT 100,
     user_limit INT NOT NULL DEFAULT 10,
-    storage_limit INT NOT NULL DEFAULT 10, -- In GB
+    storage_limit INT NOT NULL DEFAULT 10,
     monthly_fee_estimate NUMERIC(12, 2),
     logo_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    approved_at TIMESTAMP WITH TIME ZONE,
+    custom_branding_color VARCHAR(20),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    approved_at TIMESTAMPTZ,
     approved_by VARCHAR(255)
 );
 
--- 2. USERS TABLE
+-- App profile linked to auth.users via email (id may match auth.uid when provisioned that way)
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
@@ -37,16 +40,17 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
-    role VARCHAR(50) NOT NULL, -- tenant, property_manager, maintenance, finance, admin, super_admin
+    role VARCHAR(50) NOT NULL,
     property_id UUID,
     shopping_center_id UUID,
     shop_id UUID,
     status VARCHAR(50) NOT NULL DEFAULT 'Active',
     avatar_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (organization_id, username),
+    UNIQUE (email)
 );
 
--- 3. SHOPPING CENTERS TABLE
 CREATE TABLE IF NOT EXISTS shopping_centers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -59,23 +63,21 @@ CREATE TABLE IF NOT EXISTS shopping_centers (
     operating_hours VARCHAR(255),
     parking_bays INT DEFAULT 0,
     amenities TEXT[],
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. PROPERTIES TABLE
 CREATE TABLE IF NOT EXISTS properties (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     shopping_center_id UUID REFERENCES shopping_centers(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    type VARCHAR(100) NOT NULL, -- Retail shop, Office, Warehouse, Restaurant, Kiosk, Commercial unit, Mixed-use
+    type VARCHAR(100) NOT NULL,
     address TEXT NOT NULL,
     description TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'Active',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. SHOPS / COMMERCIAL UNITS TABLE
 CREATE TABLE IF NOT EXISTS shops (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -86,7 +88,7 @@ CREATE TABLE IF NOT EXISTS shops (
     size_sqm NUMERIC(10, 2) NOT NULL,
     rental_amount NUMERIC(12, 2) NOT NULL,
     deposit_amount NUMERIC(12, 2) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'Available', -- Available, Occupied, Reserved, Under Maintenance
+    status VARCHAR(50) NOT NULL DEFAULT 'Available',
     public_listing BOOLEAN NOT NULL DEFAULT true,
     public_featured BOOLEAN NOT NULL DEFAULT false,
     qr_code VARCHAR(100) NOT NULL,
@@ -96,10 +98,9 @@ CREATE TABLE IF NOT EXISTS shops (
     power_specs VARCHAR(255),
     parking_allocated INT DEFAULT 0,
     available_from VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. TENANTS TABLE
 CREATE TABLE IF NOT EXISTS tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -114,10 +115,9 @@ CREATE TABLE IF NOT EXISTS tenants (
     trade_type VARCHAR(100),
     move_in_date DATE,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 7. TICKETS TABLE
 CREATE TABLE IF NOT EXISTS tickets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_number VARCHAR(100) UNIQUE NOT NULL,
@@ -129,16 +129,16 @@ CREATE TABLE IF NOT EXISTS tickets (
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     exact_location_description TEXT,
-    priority VARCHAR(50) NOT NULL, -- Low, Medium, High, Emergency
+    priority VARCHAR(50) NOT NULL,
     category VARCHAR(100) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'Open', -- Open, In Progress, Awaiting Approval, Resolved, Closed, Reopened, Cancelled
+    status VARCHAR(50) NOT NULL DEFAULT 'Open',
     assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
     created_by_user_id UUID NOT NULL REFERENCES users(id),
-    response_deadline TIMESTAMP WITH TIME ZONE NOT NULL,
-    resolution_deadline TIMESTAMP WITH TIME ZONE NOT NULL,
-    responded_at TIMESTAMP WITH TIME ZONE,
-    resolved_at TIMESTAMP WITH TIME ZONE,
-    closed_at TIMESTAMP WITH TIME ZONE,
+    response_deadline TIMESTAMPTZ NOT NULL,
+    resolution_deadline TIMESTAMPTZ NOT NULL,
+    responded_at TIMESTAMPTZ,
+    resolved_at TIMESTAMPTZ,
+    closed_at TIMESTAMPTZ,
     sla_status VARCHAR(50) NOT NULL DEFAULT 'Compliant',
     repair_notes TEXT,
     materials_used TEXT,
@@ -149,10 +149,9 @@ CREATE TABLE IF NOT EXISTS tickets (
     tenant_rating INT,
     tenant_feedback TEXT,
     tenant_confirmed_fixed BOOLEAN,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 8. TICKET TIMELINE & COMMENTS
 CREATE TABLE IF NOT EXISTS ticket_timeline (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_id UUID NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
@@ -161,7 +160,7 @@ CREATE TABLE IF NOT EXISTS ticket_timeline (
     actor_name VARCHAR(255) NOT NULL,
     actor_role VARCHAR(50) NOT NULL,
     type VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS ticket_comments (
@@ -169,10 +168,9 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
     ticket_id UUID NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     comment TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 9. ATTACHMENTS TABLE
 CREATE TABLE IF NOT EXISTS attachments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_id UUID REFERENCES tickets(id) ON DELETE CASCADE,
@@ -181,10 +179,9 @@ CREATE TABLE IF NOT EXISTS attachments (
     file_type VARCHAR(100) NOT NULL,
     file_size_bytes BIGINT NOT NULL,
     storage_url TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 10. LEASES TABLE
 CREATE TABLE IF NOT EXISTS leases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -198,12 +195,11 @@ CREATE TABLE IF NOT EXISTS leases (
     document_url TEXT,
     document_title VARCHAR(255),
     is_digitally_signed BOOLEAN DEFAULT false,
-    signed_at TIMESTAMP WITH TIME ZONE,
+    signed_at TIMESTAMPTZ,
     signer_name VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. SLA AGREEMENTS TABLE
 CREATE TABLE IF NOT EXISTS sla_agreements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -214,12 +210,11 @@ CREATE TABLE IF NOT EXISTS sla_agreements (
     medium_response_mins INT NOT NULL DEFAULT 240,
     low_response_mins INT NOT NULL DEFAULT 1440,
     expiry_date DATE NOT NULL,
-    signed_at TIMESTAMP WITH TIME ZONE,
+    signed_at TIMESTAMPTZ,
     signer_name VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 12. FINANCE TRANSACTIONS & EXPENSES
 CREATE TABLE IF NOT EXISTS finance_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -229,16 +224,15 @@ CREATE TABLE IF NOT EXISTS finance_transactions (
     ticket_id UUID REFERENCES tickets(id) ON DELETE SET NULL,
     type VARCHAR(100) NOT NULL,
     amount NUMERIC(12, 2) NOT NULL,
-    direction VARCHAR(20) NOT NULL, -- income, expense
+    direction VARCHAR(20) NOT NULL,
     description TEXT NOT NULL,
     reference VARCHAR(100),
     date DATE NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'Paid',
     reconciled BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 13. ANNOUNCEMENTS & EMERGENCY BROADCASTS
 CREATE TABLE IF NOT EXISTS announcements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -249,10 +243,9 @@ CREATE TABLE IF NOT EXISTS announcements (
     target_audience VARCHAR(100) NOT NULL DEFAULT 'All Tenants',
     created_by_name VARCHAR(255) NOT NULL,
     is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 14. AUDIT LOGS TABLE
 CREATE TABLE IF NOT EXISTS activity_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
@@ -262,25 +255,222 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     entity_type VARCHAR(100) NOT NULL,
     entity_id VARCHAR(100) NOT NULL,
     details TEXT,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 15. ROW-LEVEL SECURITY (RLS) POLICIES
+-- ---------------------------------------------------------------------------
+-- HELPER: current app user row for RLS
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.current_app_user()
+RETURNS users
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT * FROM users WHERE email = auth.jwt() ->> 'email' LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_user_org_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT organization_id FROM users WHERE email = auth.jwt() ->> 'email' LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_user_role()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role FROM users WHERE email = auth.jwt() ->> 'email' LIMIT 1;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- ROW LEVEL SECURITY
+-- ---------------------------------------------------------------------------
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shopping_centers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_timeline ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sla_agreements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE finance_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 
--- Public can view active vacant shops
-CREATE POLICY "Public can view available shops"
-    ON shops FOR SELECT
-    USING (public_listing = true AND status = 'Available');
+-- Organizations
+CREATE POLICY org_select_member ON organizations FOR SELECT TO authenticated
+  USING (
+    public.current_user_role() = 'super_admin'
+    OR id = public.current_user_org_id()
+  );
 
--- Tenants can only see their own tickets
-CREATE POLICY "Tenants view own tickets"
-    ON tickets FOR SELECT
-    TO authenticated
-    USING (created_by_user_id = auth.uid() OR organization_id IN (
-        SELECT organization_id FROM users WHERE id = auth.uid() AND role IN ('property_manager', 'admin', 'maintenance', 'super_admin')
-    ));
+CREATE POLICY org_insert_anon_register ON organizations FOR INSERT TO anon, authenticated
+  WITH CHECK (status = 'Pending Approval');
+
+CREATE POLICY org_update_super ON organizations FOR UPDATE TO authenticated
+  USING (public.current_user_role() = 'super_admin');
+
+-- Users
+CREATE POLICY users_select ON users FOR SELECT TO authenticated
+  USING (
+    public.current_user_role() = 'super_admin'
+    OR organization_id = public.current_user_org_id()
+    OR email = auth.jwt() ->> 'email'
+  );
+
+CREATE POLICY users_update_self_or_admin ON users FOR UPDATE TO authenticated
+  USING (
+    email = auth.jwt() ->> 'email'
+    OR public.current_user_role() IN ('admin', 'super_admin')
+  );
+
+-- Shops: public marketplace + org members
+CREATE POLICY shops_public_select ON shops FOR SELECT TO anon, authenticated
+  USING (public_listing = true AND status = 'Available');
+
+CREATE POLICY shops_org_select ON shops FOR SELECT TO authenticated
+  USING (
+    public.current_user_role() = 'super_admin'
+    OR organization_id = public.current_user_org_id()
+  );
+
+CREATE POLICY shops_org_write ON shops FOR ALL TO authenticated
+  USING (
+    public.current_user_role() IN ('admin', 'property_manager', 'super_admin')
+    AND (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id())
+  )
+  WITH CHECK (
+    public.current_user_role() IN ('admin', 'property_manager', 'super_admin')
+    AND (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id())
+  );
+
+-- Shopping centers / properties / tenants — org scoped
+CREATE POLICY sc_org ON shopping_centers FOR ALL TO authenticated
+  USING (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id())
+  WITH CHECK (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id());
+
+CREATE POLICY prop_org ON properties FOR ALL TO authenticated
+  USING (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id())
+  WITH CHECK (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id());
+
+CREATE POLICY tenants_org ON tenants FOR ALL TO authenticated
+  USING (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id())
+  WITH CHECK (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id());
+
+-- Tickets
+CREATE POLICY tickets_select ON tickets FOR SELECT TO authenticated
+  USING (
+    public.current_user_role() = 'super_admin'
+    OR organization_id = public.current_user_org_id()
+  );
+
+CREATE POLICY tickets_insert ON tickets FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.current_user_org_id()
+    OR public.current_user_role() = 'super_admin'
+  );
+
+CREATE POLICY tickets_update ON tickets FOR UPDATE TO authenticated
+  USING (
+    public.current_user_role() = 'super_admin'
+    OR organization_id = public.current_user_org_id()
+  );
+
+-- Ticket children follow ticket org via join-friendly policies
+CREATE POLICY timeline_org ON ticket_timeline FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM tickets t
+      WHERE t.id = ticket_id
+        AND (public.current_user_role() = 'super_admin' OR t.organization_id = public.current_user_org_id())
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM tickets t
+      WHERE t.id = ticket_id
+        AND (public.current_user_role() = 'super_admin' OR t.organization_id = public.current_user_org_id())
+    )
+  );
+
+CREATE POLICY comments_org ON ticket_comments FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM tickets t
+      WHERE t.id = ticket_id
+        AND (public.current_user_role() = 'super_admin' OR t.organization_id = public.current_user_org_id())
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM tickets t
+      WHERE t.id = ticket_id
+        AND (public.current_user_role() = 'super_admin' OR t.organization_id = public.current_user_org_id())
+    )
+  );
+
+CREATE POLICY attachments_org ON attachments FOR ALL TO authenticated
+  USING (
+    ticket_id IS NULL OR EXISTS (
+      SELECT 1 FROM tickets t
+      WHERE t.id = ticket_id
+        AND (public.current_user_role() = 'super_admin' OR t.organization_id = public.current_user_org_id())
+    )
+  )
+  WITH CHECK (true);
+
+CREATE POLICY leases_org ON leases FOR ALL TO authenticated
+  USING (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id())
+  WITH CHECK (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id());
+
+CREATE POLICY sla_org ON sla_agreements FOR ALL TO authenticated
+  USING (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id())
+  WITH CHECK (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id());
+
+CREATE POLICY finance_org ON finance_transactions FOR ALL TO authenticated
+  USING (
+    public.current_user_role() = 'super_admin'
+    OR (
+      organization_id = public.current_user_org_id()
+      AND public.current_user_role() IN ('finance', 'admin', 'property_manager', 'super_admin')
+    )
+  )
+  WITH CHECK (
+    public.current_user_role() = 'super_admin'
+    OR organization_id = public.current_user_org_id()
+  );
+
+CREATE POLICY announcements_org ON announcements FOR ALL TO authenticated
+  USING (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id())
+  WITH CHECK (public.current_user_role() = 'super_admin' OR organization_id = public.current_user_org_id());
+
+CREATE POLICY activity_org ON activity_logs FOR SELECT TO authenticated
+  USING (
+    public.current_user_role() = 'super_admin'
+    OR organization_id = public.current_user_org_id()
+  );
+
+CREATE POLICY activity_insert ON activity_logs FOR INSERT TO authenticated
+  WITH CHECK (true);
+
+-- ---------------------------------------------------------------------------
+-- STORAGE BUCKETS (run in dashboard or via storage API)
+-- Create buckets: ticket-attachments, property-images, lease-documents, org-logos
+-- ---------------------------------------------------------------------------
+-- Example storage policies should restrict by folder prefix org_id/...
+
+COMMENT ON TABLE organizations IS 'Multi-tenant landlords / property groups';
+COMMENT ON TABLE tickets IS 'SLA-tracked maintenance and support tickets';
