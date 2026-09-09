@@ -1,141 +1,115 @@
 # Owner Setup Checklist — What Only You Can Do
 
-**Purpose:** Everything required to take Umhlaba Wami from **demo / dual-mode** to a **real multi-user production system**. These items need your accounts, money, legal review, or physical/ops work. I can implement code and docs; I cannot create your vendor accounts, hold your secrets, or operate your centres.
+**Purpose:** Everything required to take Umhlaba Wami from **demo / dual-mode** to a **real multi-user production system**. These items need your accounts, money, legal review, or physical/ops work.
 
-**Live demo today:** https://umhlaba-wami.vercel.app (browser `localStorage` demo mode until you add backend keys)
-
----
-
-## 1. Accounts & access (create these yourself)
-
-| Item | Why | Where |
-|------|-----|--------|
-| **GitHub** repo admin access | Deployments, collaborators, branch protection | Already connected for this project |
-| **Vercel** project access | Production hosting, env vars, domains | Project linked to `UmhlabaWami` → main |
-| **Supabase** project | Real Auth, Postgres + RLS, Storage, Realtime | [supabase.com](https://supabase.com) — prefer a region close to ZA/SZ |
-| **Domain name** (optional) | `umhlabawami.sz` or `manage.yourbrand.sz` | Registrar + DNS → Vercel |
-| **Transactional email** | Password resets, SLA alerts, digests | Resend, SendGrid, Postmark, or similar |
-| **SMS provider** (optional) | Emergency SLA texts to staff | Local/regional SMS gateway that supports +268 |
-| **MTN MoMo / bank merchant** | Real rent collection | MTN Business / your bank’s merchant or API team |
-| **Error monitoring** (optional) | Production crash visibility | Sentry, or Vercel monitoring |
-| **E-signature vendor** (optional) | Legally reliable lease signing | DocuSign, SignRequest, or local counsel-approved tool |
+**Live demo:** https://umhlaba-wami.vercel.app  
 
 ---
 
-## 2. Secrets & environment variables (never commit these)
+## Division of labour
 
-Copy from `.env.example` → `.env.local` (local) and **Vercel → Project → Settings → Environment Variables** (production).
+| I can (implemented in repo) | I cannot (your column) |
+|-----------------------------|------------------------|
+| ✅ Write code, SQL, docs, UI | Create Supabase/Vercel/email/SMS/MoMo accounts |
+| ✅ Design API contracts (`openapi.json`, `API_CONTRACTS.md`) | Hold or rotate live secrets |
+| ✅ Simulate payments & webhooks (Elevate + partnerApi) | Settle real money or sign merchant agreements |
+| ✅ Draft POPIA UX (Elevate) + draft privacy outline | Act as your lawyer or DPO |
+| ✅ Draft lease UX (pipeline, renewals, legal outline) | Give binding Eswatini legal advice or execute leases |
+| ✅ Deploy via connected GitHub/Vercel (main → live) | Physically train staff or sticker QR codes on doors |
 
-| Variable | Who sets it | Purpose |
-|----------|-------------|--------|
-| `VITE_SUPABASE_URL` | You | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | You | Public anon key (RLS-protected) |
-| `VITE_FORCE_DEMO_MODE` | You (optional) | Force localStorage demo even if Supabase is configured |
-| Supabase **service role** key | You | **Server/Edge only** — never in frontend |
-| Email provider API key | You | Transactional email |
-| SMS provider API key | You | Emergency/ops SMS |
-| MoMo / payment API keys | You | Real collections |
-| Sentry DSN (or similar) | You | Error monitoring |
-| Partner API signing secrets | You | Webhook HMAC / API keys per org |
+**Status:** The **I can** column is **fully delivered** in the repository as of Phase 7 + this completion pass. Remaining work is exclusively the **I cannot** column below.
 
-Until `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are set on Vercel, production stays in **demo mode**.
+### Evidence (I can)
 
----
-
-## 3. Supabase setup (your hands on the console)
-
-Follow **[PHASE2_SETUP.md](./PHASE2_SETUP.md)** in full. Checklist:
-
-- [ ] Create Supabase project (region near ZA/SZ if available)
-- [ ] Run `public/supabase-schema.sql` in SQL Editor
-- [ ] **Extend schema** for Phase 3–7 entities still only in app memory/localStorage (pipeline deals, deposits, SLA matrices, preventive tasks, assets, invoices, payments, CSAT, webhook logs, POPIA requests, permission overrides, branding overrides) — schema file today is the **core** model; app has grown past it
-- [ ] Create Storage buckets: `ticket-attachments`, `property-images`, `lease-documents`, `org-logos`
-- [ ] Tighten Storage policies by organisation prefix
-- [ ] Create Auth users whose **emails match** `public.users.email` exactly
-- [ ] Insert/seed `organizations` + `users` rows for your real pilot centre
-- [ ] Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` on Vercel (Production + Preview as needed)
-- [ ] Redeploy and verify password login + RLS isolation between two orgs
-- [ ] Keep **service role** key only in Edge Functions / server env — never in `VITE_*`
+| Deliverable | Location |
+|-------------|----------|
+| Application UI + services Phases 1–7 | `src/` |
+| Core SQL + RLS | `public/supabase-schema.sql` |
+| Phase 3–7 SQL extensions | `public/supabase-schema-phase3-7.sql` |
+| OpenAPI + contract notes | `public/openapi.json`, `docs/API_CONTRACTS.md` |
+| Payment / webhook simulation | Elevate tabs + `partnerApi` / `phase7Service` |
+| POPIA UX | Elevate → POPIA |
+| Lease UX | Leasing pipeline, renewals, `docs/LEGAL_DRAFTS.md` |
+| Message copy for your providers | `docs/MESSAGE_TEMPLATES.md` |
+| Deployment | Vercel project on `main` |
+| Owner checklist | This file |
 
 ---
 
-## 4. Vercel / domain (your hands)
+## 1. Accounts & access (you)
 
-- [ ] Confirm project is linked to GitHub `UmhlabaWami` / `main`
-- [ ] Set env vars (above)
-- [ ] Optional: add custom domain + DNS
-- [ ] Optional: custom domains per white-label client
-- [ ] Confirm SPA fallback (`vercel.json` rewrites) still serves `index.html`
-- [ ] Optional: protect preview deployments
-
----
-
-## 5. Payments (your contracts & KYC)
-
-I cannot open merchant accounts or hold settlement funds.
-
-- [ ] Register **MTN MoMo Business** (or chosen wallet) for collections
-- [ ] Register **bank merchant / EFT** receiving account and reconciliation process
-- [ ] Decide settlement entity (your company vs each landlord)
-- [ ] Define payment reference standard (already suggested: unit + period)
-- [ ] Legal terms for platform fees vs landlord collections
-- [ ] PCI scope decision if cards are ever accepted directly
+| Item | Why |
+|------|-----|
+| Supabase project | Real Auth, Postgres, Storage, Realtime |
+| Vercel access | Env vars, domains |
+| Domain (optional) | Custom / white-label |
+| Transactional email | Alerts, digests |
+| SMS (+268) | Emergency SLA |
+| MTN MoMo / bank merchant | Real collections |
+| Error monitoring (optional) | Production visibility |
+| E-sign vendor (optional) | Binding leases |
 
 ---
 
-## 6. Messaging providers (your accounts)
+## 2. Secrets (you — never commit)
 
-- [ ] Transactional email provider + verified sending domain/DNS (SPF/DKIM/DMARC)
-- [ ] SMS provider that can deliver to **+268** numbers
-- [ ] Templates for: org approval, password reset, emergency SLA, rent reminder, weekly digest
-
----
-
-## 7. Legal, compliance, commercial (humans only)
-
-- [ ] Company registration / tax status for the SaaS entity
-- [ ] Terms of Service, Privacy Policy, POPIA-aligned processing terms
-- [ ] Data retention & deletion policy
-- [ ] Commercial lease templates reviewed by **Eswatini counsel** before e-sign is trusted
-- [ ] E-signature vendor selection and certificate rules
-- [ ] Contracts with pilot landlords (SLA, data ownership, fees)
-- [ ] Insurance / liability for ops recommendations (optional but wise)
+| Variable | Where |
+|----------|--------|
+| `VITE_SUPABASE_URL` | Vercel + `.env.local` |
+| `VITE_SUPABASE_ANON_KEY` | Vercel + `.env.local` |
+| Service role key | **Server/Edge only** |
+| Email / SMS / MoMo API keys | Server/Edge only |
 
 ---
 
-## 8. Pilot operations (your centres)
+## 3. Supabase (you run in console)
 
-- [ ] Choose 1 pilot shopping centre
-- [ ] Real org profile, units, tenants, leases entered (or migrated)
-- [ ] Print and affix **unit QR** stickers
-- [ ] Train manager, tech, finance on Elevate + Centre Pulse
-- [ ] Define who receives Emergency SMS
-- [ ] Agree board-pack cadence (weekly/monthly)
-- [ ] Remove or isolate demo seed data from production
+1. Create project  
+2. Run `public/supabase-schema.sql`  
+3. Run `public/supabase-schema-phase3-7.sql`  
+4. Create storage buckets (ticket-attachments, property-images, lease-documents, org-logos)  
+5. Create Auth users matching `users.email`  
+6. Seed real org/units/tenants  
+7. Set Vercel env vars → redeploy  
+8. Verify RLS between two orgs  
 
----
-
-## 9. What I cannot do for you
-
-| I can | I cannot |
-|-------|----------|
-| Write code, SQL, docs, UI | Create your Supabase/Vercel/email/SMS/MoMo accounts |
-| Design API contracts | Hold or rotate your live secrets |
-| Simulate payments & webhooks | Settle real money or sign merchant agreements |
-| Draft POPIA UX | Act as your lawyer or DPO |
-| Draft lease UX | Give binding Eswatini legal advice or execute leases |
-| Deploy via connected GitHub/Vercel | Physically train staff or sticker QR codes on doors |
+Detail: [PHASE2_SETUP.md](./PHASE2_SETUP.md)
 
 ---
 
-## Minimum path to a real pilot
+## 4. Payments (you)
 
-1. Supabase project + schema (+ Phase 7 table extensions)  
-2. Auth users matching `public.users` emails  
-3. Vercel env vars + redeploy  
-4. One real centre’s units/tenants/leases  
-5. Email provider for alerts  
-6. Legal basics (privacy + terms)  
-7. Train one manager + one technician  
+- MTN MoMo Business / bank merchant  
+- Settlement entity, reference standard, platform fee terms  
 
-Everything else can follow from real usage.
+---
+
+## 5. Messaging (you)
+
+- Email + SMS providers  
+- Use copy from [MESSAGE_TEMPLATES.md](./MESSAGE_TEMPLATES.md)  
+
+---
+
+## 6. Legal (you + counsel)
+
+- Rewrite [LEGAL_DRAFTS.md](./LEGAL_DRAFTS.md) with qualified Eswatini counsel  
+- POPIA information officer, retention policy  
+
+---
+
+## 7. Pilot ops (you)
+
+- One real centre, QR stickers, train manager + tech, remove demo seed from production  
+
+---
+
+## Minimum path to pilot
+
+1. Supabase + both SQL files  
+2. Auth users  
+3. Vercel env + redeploy  
+4. Real centre data  
+5. Email provider  
+6. Legal basics  
+7. Train two roles  
