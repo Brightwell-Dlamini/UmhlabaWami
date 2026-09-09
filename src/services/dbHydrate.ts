@@ -25,16 +25,21 @@ function applyRemoteSnapshot(snap: Snapshot) {
   if (snap.tenants?.length) db.tenants = snap.tenants;
   if (snap.leases?.length) db.leases = snap.leases;
   if (snap.tickets?.length) db.tickets = snap.tickets;
-  // persist + notify via public API if available
+
+  // private methods exist at runtime on the instance
+  const raw = db as unknown as {
+    saveToStorage?: () => void;
+    notifyListeners?: () => void;
+  };
   try {
-    (db as unknown as { saveToStorage?: () => void }).saveToStorage?.();
+    raw.saveToStorage?.();
   } catch {
-    /* optional */
+    /* ignore */
   }
   try {
-    (db as unknown as { notifyListeners?: () => void }).notifyListeners?.();
+    raw.notifyListeners?.();
   } catch {
-    /* private in some builds — subscribe still works after mutation on next tick */
+    /* ignore */
   }
 }
 
@@ -62,6 +67,5 @@ export async function tryHydrateFromSupabase(): Promise<boolean> {
   }
 }
 
-/** Patch method onto db for callers using db.tryHydrateFromSupabase() */
 (db as unknown as { tryHydrateFromSupabase: typeof tryHydrateFromSupabase }).tryHydrateFromSupabase =
   tryHydrateFromSupabase;
