@@ -5,29 +5,30 @@
 Commercial property management platform and vacant-space marketplace for the Kingdom of Eswatini.
 
 [![Live](https://img.shields.io/badge/Live-umhlaba--wami.vercel.app-black)](https://umhlaba-wami.vercel.app)
-[![Phase](https://img.shields.io/badge/Phases%201–6-Complete-success)](docs/ROADMAP.md)
+[![Phase](https://img.shields.io/badge/Phases%201–7-Complete-success)](docs/ROADMAP.md)
 
 **Live:** [https://umhlaba-wami.vercel.app](https://umhlaba-wami.vercel.app)
 
 ---
 
-## Status — All six phases complete ✅
+## Status — Phases 1–7 complete ✅
 
 | Phase | Focus | Status |
 |-------|--------|--------|
-| 1 Foundation | Multi-role SPA | ✅ |
-| 2 Real backend | Supabase dual-mode + Vercel | ✅ |
-| 3 Operations | Centre Pulse, SLA, PM | ✅ |
-| 4 Commercial | Pipeline, rent roll, deposits | ✅ |
-| 5 Intelligence | Analytics, AI, permissions | ✅ |
-| **6 Ecosystem** | **Partner API, white-label, PWA** | ✅ |
+| 1–6 | Foundation → Ecosystem | ✅ |
+| **7 Elevate** | **System-wide excellence (A–G)** | ✅ |
 
-### Phase 6 highlights
+### Phase 7 — Elevate
 
-- Partner API explorer + OpenAPI (`/openapi.json`)
-- White-label branding per organisation
-- Progressive Web App (installable, offline shell)
-- Error boundary, offline banner, platform health
+Open **Elevate (P7)** after login for:
+
+- Ticket photos & emergency alert outbox  
+- MoMo/EFT payments, invoices, Sage export, renewals, CAM  
+- Field jobs, unit QR, vendor scorecards, handovers, assets  
+- Predictive actions, pricing assist, NL ops, board narrative  
+- CSAT, webhooks, POPIA, access review, DR checklist  
+
+Details: [docs/PHASE7_COMPLETION.md](docs/PHASE7_COMPLETION.md) · [docs/PHASE7_VISION.md](docs/PHASE7_VISION.md)
 
 ---
 
@@ -37,8 +38,6 @@ Commercial property management platform and vacant-space marketplace for the Kin
 git clone https://github.com/Brightwell-Dlamini/UmhlabaWami.git
 cd UmhlabaWami && npm install && npm run dev
 ```
-
-Optional Supabase: [docs/PHASE2_SETUP.md](docs/PHASE2_SETUP.md)
 
 ---
 
@@ -57,6 +56,6 @@ Optional Supabase: [docs/PHASE2_SETUP.md](docs/PHASE2_SETUP.md)
 
 ## Documentation
 
-[Roadmap](docs/ROADMAP.md) · [Phase 6](docs/PHASE6_COMPLETION.md) · [Vision](docs/VISION.md) · [Architecture](docs/ARCHITECTURE.md)
+[Roadmap](docs/ROADMAP.md) · [Phase 7](docs/PHASE7_COMPLETION.md) · [Vision](docs/VISION.md)
 
 **Umhlaba Wami** — Built for commercial property excellence in Eswatini.
