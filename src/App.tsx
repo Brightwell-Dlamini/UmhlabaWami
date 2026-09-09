@@ -38,6 +38,7 @@ import { NotificationCentreView } from './components/dashboard/NotificationCentr
 import { PartnerApiView } from './components/dashboard/PartnerApiView';
 import { WhiteLabelView } from './components/dashboard/WhiteLabelView';
 import { PlatformHealthView } from './components/dashboard/PlatformHealthView';
+import { Phase7ElevateView } from './components/dashboard/Phase7ElevateView';
 import { OfflineBanner } from './components/system/OfflineBanner';
 import { CreateTicketWizard } from './components/tickets/CreateTicketWizard';
 import { TicketDetailModal } from './components/tickets/TicketDetailModal';
@@ -147,6 +148,8 @@ export default function App() {
     if (sidebarActiveTab === 'partner_api') return <PartnerApiView />;
     if (sidebarActiveTab === 'white_label') return <WhiteLabelView />;
     if (sidebarActiveTab === 'platform_health') return <PlatformHealthView />;
+    if (sidebarActiveTab === 'phase7_elevate' || sidebarActiveTab === 'elevate')
+      return <Phase7ElevateView onViewTicket={(id) => setSelectedTicketId(id)} />;
     if (sidebarActiveTab === 'properties' || sidebarActiveTab === 'units')
       return (
         <UnitsDirectoryView
