@@ -81,6 +81,11 @@ export default function App() {
   }, [isDarkMode]);
 
   useEffect(() => {
+    // Prefer Supabase as source of truth when env keys are present
+    void db.tryHydrateFromSupabase();
+  }, []);
+
+  useEffect(() => {
     const unsubAuth = auth.subscribe((user) => {
       setCurrentUser(user ? { ...user } : null);
       setViewMode(user ? 'dashboard' : 'marketplace');
