@@ -35,6 +35,7 @@ import {
   Code2,
   Palette,
   HeartPulse,
+  Rocket,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -76,6 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'property_manager':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
+          { id: 'phase7_elevate', label: 'Elevate (P7)', icon: Rocket },
           { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
           { id: 'ai_assist', label: 'AI Assist', icon: Sparkles },
           { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban },
@@ -96,6 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'maintenance':
         return [
           { id: 'maintenance_jobs', label: 'My Jobs', icon: Wrench },
+          { id: 'phase7_elevate', label: 'Elevate (P7)', icon: Rocket },
           { id: 'staff_schedule', label: 'My Schedule', icon: Calendar },
           { id: 'preventive', label: 'Preventive PM', icon: CheckCircle2 },
           { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -104,6 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'finance':
         return [
           { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, highlight: true },
+          { id: 'phase7_elevate', label: 'Elevate (P7)', icon: Rocket },
           { id: 'deposits', label: 'Deposit Ledger', icon: Wallet },
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
           { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
@@ -117,6 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'admin':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
+          { id: 'phase7_elevate', label: 'Elevate (P7)', icon: Rocket, highlight: true },
           { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
           { id: 'ai_assist', label: 'AI Assist', icon: Sparkles },
           { id: 'permissions', label: 'Permissions', icon: KeyRound },
@@ -143,6 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'super_admin':
         return [
           { id: 'super_overview', label: 'Platform Dashboard', icon: LayoutDashboard },
+          { id: 'phase7_elevate', label: 'Elevate (P7)', icon: Rocket, highlight: true },
           { id: 'super_approvals', label: 'Org Approvals', icon: ShieldCheck, badgeCount: 'Pending' },
           { id: 'super_organizations', label: 'All Organizations', icon: Layers },
           { id: 'subscription_billing', label: 'Subscription Billing', icon: CreditCard },
@@ -237,7 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-900 animate-pulse" />
           </div>
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 6 · Ecosystem & Polish</p>
+          <p className="text-[10px] text-slate-400 truncate mt-0.5">Phase 7 · Elevate</p>
         </div>
       )}
     </aside>
