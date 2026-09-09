@@ -2,135 +2,87 @@
 
 ## 1. High-Level Architecture
 
-Umhlaba Wami is structured as a **single-page application (SPA)** with a clear separation between:
-
-- **Presentation layer** (React components organised by domain)
-- **Application services** (AuthService, DbService)
-- **Domain model** (TypeScript types in `src/types`)
-- **Future persistence layer** (Supabase PostgreSQL schema + RLS)
+Umhlaba Wami is a **React 19 + TypeScript + Vite SPA** with layered services and a **dual-mode** data/auth backend.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Browser (React 19 SPA)                   │
+│                     Browser (React 19 SPA / PWA)             │
 ├──────────────────────┬──────────────────────────────────────┤
-│  Marketplace Views   │  Role-based Dashboard Views          │
-│  (public)            │  (authenticated)                     │
+│  Marketplace (public)│  Role dashboards + Elevate (P7) hub  │
 ├──────────────────────┴──────────────────────────────────────┤
-│  App.tsx — View routing, modal orchestration, toast, theme  │
-├──────────────────────┬──────────────────────────────────────┤
-│  AuthService         │  DbService (in-memory + localStorage)│
-│  - login / logout    │  - seed data                         │
-│  - permissions       │  - CRUD helpers                      │
-│  - session restore   │  - audit logging                     │
-│                      │  - pub/sub for UI reactivity         │
-├──────────────────────┴──────────────────────────────────────┤
-│  Domain Types (User, Organization, Shop, Ticket, Lease …)   │
+│  App.tsx — view mode, sidebar tabs, modals, theme, toasts     │
+├─────────────┬─────────────┬─────────────┬───────────────────┤
+│ AuthService │ DbService   │ opsService  │ commercialService │
+│ dual-mode   │ dual-mode   │ Phase 3     │ Phase 4           │
+├─────────────┴─────────────┴─────────────┴───────────────────┤
+│ intelligenceService (P5) · brandingService · partnerApi (P6) │
+│ phase7Service (P7 Elevate)                                    │
+├─────────────────────────────────────────────────────────────┤
+│ Domain types: src/types/index.ts                              │
 └─────────────────────────────────────────────────────────────┘
                               │
-                              ▼  (Phase 2 target)
-┌─────────────────────────────────────────────────────────────┐
-│  Supabase                                                    │
-│  - PostgreSQL + RLS                                          │
-│  - Auth                                                      │
-│  - Storage (attachments, images)                             │
-│  - Realtime (optional)                                       │
-└─────────────────────────────────────────────────────────────┘
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+     Demo mode (default)              Supabase mode
+     localStorage + seed              Postgres+RLS, Auth,
+                                      Storage, Realtime (opt.)
 ```
 
-This architecture is deliberately layered so that Phase 2 can replace the client-side data and auth implementations without a wholesale rewrite of the UI.
+Mode selection: `src/lib/supabase.ts` — if `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set (and not forced demo), Auth/DB can use Supabase helpers. UI still primarily driven by in-memory `db` until fully migrated view-by-view.
 
-## 2. Application Entry & Routing
+## 2. Application entry & routing
 
-- `index.html` mounts the React root and sets SEO meta tags.
-- `src/main.tsx` bootstraps React.
-- `src/App.tsx` is the central orchestrator:
-  - Subscribes to AuthService and DbService changes.
-  - Switches between `marketplace` and `dashboard` view modes.
-  - Renders the appropriate sidebar tab content based on role and `sidebarActiveTab`.
-  - Manages global modals (login, register, ticket creation, property detail, broadcast, etc.).
-  - Supports dark mode via a CSS class on `document.documentElement`.
+- `index.html` — SEO, PWA manifest link, theme-color, icons  
+- `src/main.tsx` — React root, **ErrorBoundary**, service worker registration  
+- `src/App.tsx` — marketplace vs dashboard, role tab content, modals, dark mode, offline banner, branding apply  
 
-There is currently **no React Router** dependency; navigation is state-driven. This may be revisited in later phases if deep-linking and shareable URLs become important.
+Navigation is **state-driven** (no React Router). Deep-linking may be added later.
 
-## 3. Authentication & Authorisation
+## 3. Authentication & authorisation
 
-### AuthService (`src/services/auth.ts`)
+- **Demo:** org code + username; password not enforced  
+- **Supabase mode:** org code + username resolved to email/password Auth  
+- Roles: `tenant` | `property_manager` | `maintenance` | `finance` | `admin` | `super_admin`  
+- **Phase 5:** granular `PermissionKey` catalog + per-user overrides (`intelligenceService`)  
+- Org status must be Active for normal login; Super Admin is platform-scoped  
 
-- Session is stored under the key `umhlaba_wami_current_user_id` in `localStorage`.
-- Login accepts **Organisation Code** + **Username** (password parameter is present but not enforced in the demo layer).
-- Special super-admin path: username `superadmin` or org codes `SUPER` / `ADMIN`.
-- Organisation status is validated (`Pending Approval`, `Suspended`, `Rejected` block login).
-- User status must be `Active`.
-- Role-based permission helpers are centralised and should remain the single source of truth for UI gating.
+## 4. Data layer
 
-### Roles
+- **DbService** — seed, CRUD helpers, audit log, pub/sub, localStorage key `umhlaba_wami_db_v2`  
+- **opsService** — SLA matrix, escalation, preventive maintenance, Centre Pulse inputs  
+- **commercialService** — pipeline, rent roll, deposits, board pack, subscriptions  
+- **intelligenceService** — KPIs, anomalies, triage, NL search, permissions, audit helpers  
+- **brandingService** — white-label CSS variables  
+- **partnerApi** — OpenAPI-shaped partner facade  
+- **phase7Service** — Elevate A–G extensions  
+- **Schema:** `public/supabase-schema.sql` (core); app local collections for P3–P7 extensions still need schema expansion before full remote mode  
 
-| Role | Typical Scope |
-|------|---------------|
-| `tenant` | Own shop, tickets, lease, documents |
-| `property_manager` | Assigned centre/property operations |
-| `maintenance` | Assigned tickets / jobs |
-| `finance` | Rent, expenses, requests |
-| `admin` | Full organisation control |
-| `super_admin` | Platform-wide: org approval, subscriptions, audit |
-
-Phase 2 will replace the current session mechanism with proper server-backed authentication while preserving the organisation-code login experience where it adds value.
-
-## 4. Data Layer
-
-### DbService (`src/services/db.ts`) — Phase 1
-
-- Holds all domain collections.
-- Seeds realistic Eswatini demo data on first load.
-- Persists state to `localStorage` under `umhlaba_wami_db_v2`.
-- Exposes a publish-subscribe API so React components re-render on mutations.
-- Provides helper methods for common operations (ticket lifecycle, audit logging, etc.).
-
-### Production Schema
-
-`public/supabase-schema.sql` defines the target PostgreSQL tables and a starter set of RLS policies. The TypeScript interfaces in `src/types/index.ts` are deliberately aligned with this schema so that the transition in Phase 2 is primarily an implementation swap rather than a model redesign.
-
-## 5. Component Organisation
+## 5. Component organisation
 
 | Folder | Responsibility |
 |--------|----------------|
-| `components/auth` | Login and organisation registration modals |
-| `components/layout` | Navbar, Sidebar (role-aware), Footer |
-| `components/marketplace` | Public marketplace, property cards, enquiry & lead modals |
-| `components/dashboard` | All role dashboards and operational lists |
-| `components/management` | Units directory, lease & SLA management |
-| `components/tickets` | Multi-step ticket creation wizard and detailed ticket modal |
+| `components/auth` | Login, org registration |
+| `components/layout` | Navbar, Sidebar, MobileBottomNav, Footer |
+| `components/marketplace` | Public listings, enquiry, leads |
+| `components/dashboard` | Role portals, Pulse, commercial, intelligence, Elevate |
+| `components/management` | Units, leases |
+| `components/tickets` | Create wizard, detail modal |
+| `components/system` | ErrorBoundary, OfflineBanner |
 
-## 6. UI / UX Patterns
+## 6. UI / UX
 
-- Tailwind CSS 4 utility-first styling with dark mode support.
-- Lucide icons for consistent iconography.
-- Motion library available for animations.
-- Toast notifications for user feedback.
-- Emergency centre-wide alert banner when active announcements match emergency keywords.
-- Responsive layout: sidebar hidden on smaller viewports; content adapts.
+- Tailwind CSS 4, dark mode, Lucide icons  
+- Mobile bottom nav for authenticated users  
+- Emergency banner for active centre alerts  
+- PWA install shell (`manifest.webmanifest`, `sw.js`)  
+- Brand CSS variables `--brand-primary`, `--brand-accent`  
 
-## 7. Extensibility Points (Aligned with Roadmap)
+## 7. Security notes
 
-1. **Phase 2** — Replace DbService and AuthService internals with Supabase client while keeping the same TypeScript interfaces and permission helpers.
-2. **Phase 3+** — Deepen ticket, SLA, staff, and vendor workflows inside the existing component structure.
-3. **Phase 4+** — Extend leasing, payments, and marketplace growth features.
-4. **Phase 5** — Introduce analytics services and GenAI-assisted features (capability already declared in `metadata.json`).
-5. **Phase 6** — Public API, webhooks, white-label theming, and native/PWA mobile experiences.
-
-## 8. Security Notes
-
-### Phase 1 (Current)
-- No password hashing or server-side validation.
-- All data is client-side; suitable only for demonstration and local development.
-
-### From Phase 2 Onward
-- Multi-tenant isolation via Row-Level Security.
-- Proper authentication and session management.
-- Secure storage for files and documents.
-- Server-side audit logging of sensitive actions.
-- Progressive hardening (rate limiting, CSP, backups, etc.) as the product approaches production use.
+- **Demo mode:** no real password enforcement; client-side data only — not multi-user production  
+- **Supabase mode:** RLS, Auth, server-side audit, storage policies required before go-live  
+- Never expose service role key in `VITE_*`  
 
 ---
 
-*This document is updated as the architecture evolves through the phases described in `ROADMAP.md`.*
+*Updated for Phases 1–7.*

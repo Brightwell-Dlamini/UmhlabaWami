@@ -1,65 +1,66 @@
 # Deployment & Production Notes — Umhlaba Wami
 
-## 1. Current State
+## 1. Current state
 
-The repository ships a fully functional **demo SPA**. Data is stored in the browser (`localStorage`). This is ideal for:
+- **GitHub:** `Brightwell-Dlamini/UmhlabaWami`  
+- **Vercel:** https://umhlaba-wami.vercel.app (SPA; `vercel.json` rewrites)  
+- **Default mode:** Demo — browser `localStorage`, not shared multi-user production  
+- **Phases 1–7:** Implemented in the SPA; Phase 2 Supabase activates when env keys are set  
 
-- Local development
-- Stakeholder demonstrations
-- UI/UX validation
+## 2. Recommended production architecture
 
-It is **not** production-ready for multi-user concurrent use or sensitive data.
+1. **Frontend:** Vercel (or other static host) from Vite `dist/`  
+2. **Backend:** Supabase — Postgres + RLS, Auth, Storage, Realtime  
+3. **Edge/API:** Supabase Edge Functions implementing `public/openapi.json`  
+4. **Email / SMS:** Provider of your choice (+268 capable for SMS)  
+5. **Payments:** MTN MoMo Business / bank EFT (owner merchant accounts)  
+6. **Monitoring:** Sentry (or similar) + Supabase/Vercel dashboards  
 
-## 2. Recommended Production Architecture
+Owner action list: **[OWNER_SETUP.md](./OWNER_SETUP.md)**  
+Supabase steps: **[PHASE2_SETUP.md](./PHASE2_SETUP.md)**
 
-1. **Frontend**: Deploy the Vite build to a static host (Vercel, Netlify, Cloudflare Pages, or S3 + CloudFront).
-2. **Backend / Database**: Supabase project.
-   - Run `public/supabase-schema.sql` (extend RLS policies).
-   - Enable Auth (email + optional magic link / SSO).
-   - Use Supabase Storage for ticket attachments and property images.
-3. **Client refactor**:
-   - Replace `src/services/db.ts` with a Supabase client module that implements the same TypeScript interfaces.
-   - Replace `AuthService` session handling with Supabase Auth session + organisation membership checks.
-4. **Environment variables**:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - (Server-side) service role key only in secure edge functions if needed.
-
-## 3. Build & Deploy (Static)
+## 3. Build & deploy
 
 ```bash
 npm install
 npm run build
-# Output in dist/
+# output: dist/
 ```
 
-Deploy the `dist` folder to your preferred static hosting provider. Configure SPA fallback so all routes serve `index.html`.
+Push to `main` deploys via the linked Vercel Git project. SPA fallback must serve `index.html` for client routes.
 
-## 4. Security Checklist Before Go-Live
+## 4. Environment variables
 
-- [ ] Passwords hashed (bcrypt / Argon2) or fully delegated to Supabase Auth
-- [ ] Comprehensive RLS policies for every table and operation
-- [ ] Storage bucket policies restricting access by organisation / role
-- [ ] HTTPS only
-- [ ] Content Security Policy headers
-- [ ] Rate limiting on auth and ticket creation endpoints
-- [ ] Audit logging retained server-side
-- [ ] Regular backups of the PostgreSQL database
+See `.env.example`:
 
-## 5. Environment-Specific Configuration
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_FORCE_DEMO_MODE` (optional)
 
-- Use different Supabase projects (or schemas) for staging and production.
-- Keep demo seed data out of production; provide a controlled seed script for UAT only.
+Plus **server-only** secrets for email, SMS, payments, service role (never `VITE_*`).
 
-## 6. Monitoring & Observability
+## 5. Security checklist before go-live
 
-- Application performance monitoring (e.g. Sentry for frontend errors).
-- Supabase dashboard for database metrics and auth logs.
-- Optional: structured logging of critical business events (ticket SLA breaches, organisation approvals).
+- [ ] Real Auth passwords / Supabase Auth  
+- [ ] RLS on every table + Storage policies  
+- [ ] Schema extended for Phase 3–7 local-only entities  
+- [ ] HTTPS only; CSP and rate limits  
+- [ ] Audit log retention server-side  
+- [ ] Backups + restore drill  
+- [ ] No demo seed in production  
 
-## 7. Future Enhancements
+## 6. PWA
 
-- Progressive Web App (PWA) for technicians on mobile devices.
-- Offline ticket draft support.
-- Native mobile apps consuming the same Supabase backend.
-- GenAI-assisted ticket triage and natural-language reports (capability already declared in `metadata.json`).
+- `public/manifest.webmanifest`, `public/sw.js`, `public/icons/*`  
+- Registered from `src/main.tsx`  
+- Confirm installability in Chrome/Edge Application panel after deploy  
+
+## 7. Monitoring
+
+- Frontend errors (e.g. Sentry)  
+- Supabase auth/DB metrics  
+- Business events: SLA breaches, org approvals, payment matches  
+
+---
+
+*Updated for Phases 1–7.*
