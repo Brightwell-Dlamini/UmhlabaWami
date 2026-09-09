@@ -1,6 +1,7 @@
 /**
- * Supabase data access helpers (Phase 2).
- * Mirrors the operations needed by the UI while using PostgreSQL + RLS.
+ * Supabase data access helpers (Phase 2+).
+ * Mirrors operations needed by the UI while using PostgreSQL + RLS.
+ * hydrateAll() loads remote rows into the in-memory DbService shape.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type {
@@ -10,6 +11,10 @@ import type {
   TicketPriority,
   TicketCategory,
   User,
+  ShoppingCenter,
+  Property,
+  Tenant,
+  Lease,
 } from '../types';
 
 function requireClient() {
@@ -17,6 +22,70 @@ function requireClient() {
     throw new Error('Supabase client is not configured.');
   }
   return supabase;
+}
+
+/** Full snapshot used to replace local demo seed when backend mode is on. */
+export type RemoteSnapshot = {
+  organizations: Organization[];
+  users: User[];
+  shoppingCenters: ShoppingCenter[];
+  properties: Property[];
+  shops: Shop[];
+  tenants: Tenant[];
+  leases: Lease[];
+  tickets: Ticket[];
+};
+
+export async function hydrateAll(): Promise<RemoteSnapshot> {
+  const client = requireClient();
+  const [
+    organizations,
+    users,
+    shoppingCenters,
+    properties,
+    shops,
+    tenants,
+    leases,
+    tickets,
+  ] = await Promise.all([
+    client.from('organizations').select('*').order('created_at', { ascending: false }),
+    client.from('users').select('*').order('created_at', { ascending: true }),
+    client.from('shopping_centers').select('*'),
+    client.from('properties').select('*'),
+    client.from('shops').select('*'),
+    client.from('tenants').select('*'),
+    client.from('leases').select('*'),
+    client.from('tickets').select('*').order('created_at', { ascending: false }),
+  ]);
+
+  const firstErr =
+    organizations.error ||
+    users.error ||
+    shoppingCenters.error ||
+    properties.error ||
+    shops.error ||
+    tenants.error ||
+    leases.error ||
+    tickets.error;
+  if (firstErr) throw firstErr;
+
+  // Map lease.deposit → deposit_amount for app types where needed
+  const mappedLeases = (leases.data || []).map((row: Record<string, unknown>) => ({
+    ...row,
+    deposit_amount: row.deposit ?? row.deposit_amount,
+    status: row.renewal_status ?? row.status ?? 'Active',
+  })) as Lease[];
+
+  return {
+    organizations: (organizations.data || []) as Organization[],
+    users: (users.data || []) as User[],
+    shoppingCenters: (shoppingCenters.data || []) as ShoppingCenter[],
+    properties: (properties.data || []) as Property[],
+    shops: (shops.data || []) as Shop[],
+    tenants: (tenants.data || []) as Tenant[],
+    leases: mappedLeases,
+    tickets: (tickets.data || []) as Ticket[],
+  };
 }
 
 export async function fetchAvailableShops(): Promise<Shop[]> {
@@ -158,7 +227,6 @@ export async function registerOrganizationRemote(payload: {
   return data as Organization;
 }
 
-/** Load current app user profile by auth email */
 export async function fetchUserByEmail(email: string): Promise<User | null> {
   const client = requireClient();
   const { data, error } = await client.from('users').select('*').eq('email', email).limit(1);
