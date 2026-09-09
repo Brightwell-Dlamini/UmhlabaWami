@@ -30,88 +30,75 @@ Commercial property in Eswatini (and similar markets) still runs on a fragmented
 
 ## 3. Idea Bank by Domain
 
+Capabilities below are the long-range idea bank. **Shipped at least at demo depth through Phases 1–7** are marked ✅. Items still primarily future/production-only are marked ⏳.
+
 ### 3.1 Marketplace & Leasing
-- Rich public listings with floor plans, 3D/virtual walkthroughs, and “available from” calendars
-- Instant enquiry → automated acknowledgement + manager notification
-- Viewing scheduler with calendar holds
-- Digital offer letters and counter-offers
-- Template-driven lease generation with e-signature (local legal review required)
-- Move-in / move-out digital checklists with photo evidence and deposit reconciliation
-- “Similar units” recommendations and wait-list for high-demand centres
-- Landlord lead scoring and nurture sequences
-- Featured / promoted listings as a revenue stream for the platform
+- ✅ Public listings, enquiry → pipeline, list-property leads
+- ✅ Leasing pipeline Kanban through to signed/convert
+- ⏳ Rich floor plans, 3D/virtual walkthroughs, availability calendars
+- ⏳ Digital offer letters/counter-offers with full legal e-sign
+- ✅ Move-in oriented deposit ledger; ⏳ fuller move-out checklists
+- ✅ Pricing assist for vacant units (Phase 7)
+- ⏳ Wait-lists, landlord lead scoring, promoted listings as platform revenue
 
 ### 3.2 Operations & Maintenance
-- QR-code stickers on every unit that open a pre-scoped ticket form
-- Configurable SLA matrices per centre, per category, or per tenant contract
-- Automatic escalation ladders (technician → supervisor → manager → emergency roster)
-- Parts & materials inventory lightly linked to tickets
-- Preventive maintenance schedules generated from asset registers
-- Technician route / job sequencing suggestions for multi-ticket days
-- Tenant satisfaction scoring after every closed ticket with trend analysis
-- Integration hooks for access-control or BMS systems later
+- ✅ SLA matrices, escalation, Centre Pulse, preventive PM, vendors
+- ✅ Unit QR payload + resolve (Phase 7); ⏳ physical sticker rollout (owner)
+- ✅ Ticket photo evidence (Phase 7 demo storage)
+- ✅ Technician field job workflow (Phase 7)
+- ✅ CSAT after closed tickets (Phase 7)
+- ⏳ Parts inventory; BMS/access-control integrations
 
 ### 3.3 People & Vendors
-- Staff rostering with shift patterns common in Eswatini centres
-- Leave and on-call management
-- Vendor scorecards (response time, quality, cost, reliability)
-- Preferred-vendor rules by ticket category
-- Contract expiry and insurance-certificate tracking
-- Simple internal messaging or ticket-linked comment threads that reduce WhatsApp dependency
+- ✅ Staff rostering, vendors, preferred-vendor by category
+- ✅ Vendor scorecards (Phase 7)
+- ✅ Ticket-linked messaging / announcements to reduce WhatsApp dependency
+- ⏳ Leave/on-call; insurance certificate tracking automation
 
 ### 3.4 Finance & Commercial
-- Live rent roll with expected vs collected and aging
-- One-click recording of payments (initially manual; later bank or payment-provider feeds)
-- Security deposit ledgers and automated refund workflows
-- Budget vs actual for maintenance and centre expenses
-- Board-pack style PDF exports (occupancy, collections, SLA, notable incidents)
-- Organisation-level subscription billing and usage metering against tier limits
-- Multi-currency readiness (even if primary is Emalangeni) for future regional expansion
+- ✅ Rent roll, arrears aging, payment recording, deposits, board pack
+- ✅ Invoices/statements/CAM + Sage CSV export (Phase 7)
+- ✅ Organisation subscription billing & tiers
+- ⏳ Live bank/MoMo provider feeds; full budget vs actual suites
+- ⏳ Multi-currency beyond Emalangeni-first display
 
 ### 3.5 Intelligence & Automation
-- Natural-language search across tickets, tenants, and units
-- AI-suggested ticket category, priority, and even first-response draft
-- Anomaly alerts (“This unit has had three water-related tickets in 60 days”)
-- Predictive insights on units at risk of non-renewal
-- Portfolio health score for executives
-- Automated weekly digest emails for managers and owners
+- ✅ NL search, AI triage drafts, anomalies, portfolio health score
+- ✅ Predictive actions, NL ops, board narrative, benchmarks (Phase 7)
+- ⏳ Automated weekly digest emails (needs owner email provider)
 
 ### 3.6 Platform, Trust & Scale
-- Granular, property-scoped permissions beyond the six base roles
-- Full immutable audit log of sensitive actions
-- POPIA-conscious data handling, retention, and export/delete capabilities
-- White-label theming (logo, colours, custom domain) for large groups
-- Public API + webhooks for accounting, CRM, or access systems
-- Native or high-quality PWA experience optimised for field use
-- Multi-language readiness (English primary; siSwati considerations later)
+- ✅ Granular permissions + overrides; audit trail + export; POPIA request UX
+- ✅ White-label theming; Partner API explorer + OpenAPI; PWA shell
+- ⏳ Live API keys, custom domains at DNS, siSwati localisation
 
-### 3.7 Delight & Differentiation Ideas
-- “Centre Pulse” — a single live view of open emergencies, SLA breaches, and today’s critical jobs
-- Digital noticeboard that replaces physical boards and WhatsApp blasts
-- Tenant app-like experience inside the same product (no separate download required initially)
-- Celebration moments (confetti or subtle animation) when a long-running ticket is closed or a new lease is signed
-- Benchmarking (anonymised) so a centre can see how its SLA performance compares to peers
+### 3.7 Delight & Differentiation
+- ✅ Centre Pulse, digital noticeboard/broadcasts, tenant experience in-product
+- ✅ Benchmarking (Phase 7)
+- ⏳ Richer celebration moments and motion polish as desired
 
 ---
 
 ## 4. What “World-Class” Means Here
 
-- **Reliability** — The system is trusted with money, legal documents, and emergency response.
-- **Speed** — Core actions feel instant; lists and dashboards load quickly even with real data volumes.
-- **Clarity** — A new property manager can become productive within a day.
-- **Depth** — Power users never feel they have to “export to Excel to finish the job”.
-- **Polish** — Typography, spacing, empty states, error messages, and accessibility receive the same care as the core workflows.
-- **Local relevance** — The product understands Emalangeni, local centre operating hours, and the practical realities of facilities management in Eswatini.
+- **Reliability** — Trusted with money, legal documents, and emergency response.
+- **Speed** — Core actions feel instant; lists and dashboards stay fast.
+- **Clarity** — A new property manager productive within a day.
+- **Depth** — Power users need not export to Excel to finish the job.
+- **Polish** — Typography, empty states, errors, accessibility.
+- **Local relevance** — Emalangeni, +268, Eswatini centre realities.
+
+**Assessment (Phases 1–7 demo product):** Meets or exceeds the *product surface* implied by this vision for an Eswatini-first commercial OPS+marketplace. **Does not yet meet** world-class *production* reliability (shared backend, real payments, real messaging) until [OWNER_SETUP.md](./OWNER_SETUP.md) is completed.
 
 ---
 
 ## 5. How We Will Use This Document
 
 - New ideas are added freely.
-- Ideas are promoted into the Roadmap phases when they are prioritised.
-- Completed capabilities are marked or moved into the relevant permanent documentation (User Guide, Architecture, etc.).
-- This remains a thinking space — not every idea will be built, and that is intentional.
+- Ideas are promoted into Roadmap phases when prioritised.
+- Completed capabilities are marked ✅ here and detailed in completion docs / User Guide.
+- Not every idea will be built; that is intentional.
 
 ---
 
-*Last updated: Phase 1 documentation cycle. This vision will evolve as we build together.*
+*Last updated: Phase 7 Elevate implementation (September 2026).*
