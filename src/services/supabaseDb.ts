@@ -3,6 +3,7 @@
  * hydrateAll() loads remote rows into the in-memory DbService shape.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { mapTicketRow } from './repository';
 import type {
   Organization,
   Shop,
@@ -89,11 +90,10 @@ export async function hydrateAll(): Promise<RemoteSnapshot> {
     shops: (shops.data || []) as Shop[],
     tenants: (tenants.data || []) as Tenant[],
     leases: mappedLeases,
-    tickets: (tickets.data || []) as Ticket[],
+    tickets: (tickets.data || []).map((row) => mapTicketRow(row as Record<string, unknown>)),
   };
 }
 
-/** Public marketplace rows readable by anon. */
 export async function hydratePublicListings(): Promise<{
   shops: Shop[];
   properties: Property[];
@@ -142,37 +142,7 @@ export async function fetchTicketsForOrg(organizationId: string): Promise<Ticket
     .eq('organization_id', organizationId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as Ticket[];
-}
-
-export async function createTicketRemote(input: {
-  organization_id: string;
-  shopping_center_id?: string;
-  property_id: string;
-  shop_id: string;
-  tenant_id: string;
-  title: string;
-  description: string;
-  exact_location_description?: string;
-  priority: TicketPriority;
-  category: TicketCategory;
-  created_by_user_id: string;
-  response_deadline: string;
-  resolution_deadline: string;
-  ticket_number: string;
-}): Promise<Ticket> {
-  const client = requireClient();
-  const { data, error } = await client
-    .from('tickets')
-    .insert({
-      ...input,
-      status: 'Open',
-      sla_status: 'Compliant',
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Ticket;
+  return (data || []).map((row) => mapTicketRow(row as Record<string, unknown>));
 }
 
 export async function approveOrganizationRemote(

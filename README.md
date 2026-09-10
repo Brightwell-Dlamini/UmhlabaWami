@@ -5,48 +5,37 @@
 Commercial property management platform and vacant-space marketplace for the Kingdom of Eswatini.
 
 [![Live](https://img.shields.io/badge/Live-umhlaba--wami.vercel.app-black)](https://umhlaba-wami.vercel.app)
-[![Phase](https://img.shields.io/badge/Phases%201–7-Complete-success)](docs/ROADMAP.md)
+[![Backend](https://img.shields.io/badge/Backend-Supabase%20only-3ECF8E)](docs/SUPABASE_ONLY.md)
 
 **Live:** [https://umhlaba-wami.vercel.app](https://umhlaba-wami.vercel.app)
 
 ---
 
-## Status — Phases 1–7 complete ✅
+## Production mode
 
-| Phase | Focus | Status |
-|-------|--------|--------|
-| 1–6 | Foundation → Ecosystem | ✅ |
-| **7 Elevate** | **System-wide excellence (A–G)** | ✅ |
+This product runs **Supabase-only** (no localStorage mock product database).
 
-**Client delivery report (all phases):** [docs/PHASES_1_TO_7_DELIVERY_REPORT.md](docs/PHASES_1_TO_7_DELIVERY_REPORT.md)
+| Required | |
+|----------|--|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Anon public key |
 
-### Phase 7 — Elevate
+**Setup:** [docs/GO_LIVE_SUPABASE.md](docs/GO_LIVE_SUPABASE.md) · **Readiness:** [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) · **Delivery:** [docs/PHASES_1_TO_7_DELIVERY_REPORT.md](docs/PHASES_1_TO_7_DELIVERY_REPORT.md)
 
-Open **Elevate (P7)** after login for:
+### SQL (run in order)
 
-- Ticket photos & emergency alert outbox  
-- MoMo/EFT payments, invoices, Sage export, renewals, CAM  
-- Field jobs, unit QR, vendor scorecards, handovers, assets  
-- Predictive actions, pricing assist, NL ops, board narrative  
-- CSAT, webhooks, POPIA, access review, DR checklist  
+1. `public/supabase-schema.sql`
+2. `public/supabase-schema-phase3-7.sql`
+3. `public/seed-demo-data.sql`
+4. `public/supabase-auth-bridge.sql`
+5. `public/supabase-public-marketplace.sql`
 
-Details: [docs/PHASE7_COMPLETION.md](docs/PHASE7_COMPLETION.md) · [docs/PHASE7_VISION.md](docs/PHASE7_VISION.md)
+### Login
 
----
+Organisation code + username + **Supabase Auth password** (Auth user email must match `public.users.email`).
 
-## Getting started
-
-```bash
-git clone https://github.com/Brightwell-Dlamini/UmhlabaWami.git
-cd UmhlabaWami && npm install && npm run dev
-```
-
----
-
-## Demo accounts
-
-| Role | Org code | Username |
-|------|----------|----------|
+| Role | Org | Username |
+|------|-----|----------|
 | Super Admin | `SUPER` | `superadmin` |
 | Org Admin | `GAB-070826` | `lindiwe.admin` |
 | Property Manager | `GAB-070826` | `sipho.manager` |
@@ -56,8 +45,13 @@ cd UmhlabaWami && npm install && npm run dev
 
 ---
 
-## Documentation
+## Local
 
-[**Phases 1–7 delivery report**](docs/PHASES_1_TO_7_DELIVERY_REPORT.md) · [Roadmap](docs/ROADMAP.md) · [User Guide](docs/USER_GUIDE.md) · [Vision](docs/VISION.md) · [Owner setup](docs/OWNER_SETUP.md)
+```bash
+cp .env.example .env.local   # fill Supabase keys
+npm install && npm run dev
+```
+
+---
 
 **Umhlaba Wami** — Built for commercial property excellence in Eswatini.
