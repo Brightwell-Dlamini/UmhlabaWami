@@ -32,7 +32,6 @@ import {
   Sparkles,
   KeyRound,
   Bell,
-  Code2,
   Palette,
   HeartPulse,
   Rocket,
@@ -121,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'admin':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
-          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket, highlight: true },
+          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket },
           { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
           { id: 'ai_assist', label: 'AI Assist', icon: Sparkles },
           { id: 'permissions', label: 'Permissions', icon: KeyRound },
@@ -136,7 +135,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'white_label', label: 'White-label', icon: Palette },
-          { id: 'partner_api', label: 'Partner API', icon: Code2 },
           { id: 'platform_health', label: 'Platform Health', icon: HeartPulse },
           { id: 'preventive', label: 'Preventive PM', icon: Calendar },
           { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
@@ -147,19 +145,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
       case 'super_admin':
         return [
-          { id: 'super_overview', label: 'Platform Dashboard', icon: LayoutDashboard },
-          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket, highlight: true },
+          { id: 'super_overview', label: 'Platform Dashboard', icon: LayoutDashboard, highlight: true },
           { id: 'super_approvals', label: 'Org Approvals', icon: ShieldCheck, badgeCount: 'Pending' },
-          { id: 'super_organizations', label: 'All Organizations', icon: Layers },
+          { id: 'super_organizations', label: 'All Organisations', icon: Layers },
           { id: 'subscription_billing', label: 'Subscription Billing', icon: CreditCard },
-          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
-          { id: 'permissions', label: 'Permissions', icon: KeyRound },
-          { id: 'compliance_audit', label: 'Compliance Audit', icon: History },
-          { id: 'partner_api', label: 'Partner API', icon: Code2 },
-          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse },
-          { id: 'super_listings', label: 'Marketplace Vacancies', icon: Store },
-          { id: 'super_users', label: 'User Directory', icon: Users },
           { id: 'analytics_reports', label: 'Global Analytics', icon: BarChart3 },
+          { id: 'permissions', label: 'Permissions', icon: KeyRound },
+          { id: 'super_users', label: 'User Directory', icon: Users },
+          { id: 'super_listings', label: 'Marketplace Vacancies', icon: Store },
+          { id: 'compliance_audit', label: 'Compliance Audit', icon: History },
+          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse },
+          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket },
           { id: 'db_backup', label: 'Database Backup', icon: Settings },
         ];
       default:
