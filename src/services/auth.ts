@@ -32,6 +32,16 @@ class AuthService {
     this.listeners.forEach((l) => l(this.currentUser));
   }
 
+  /** Pull org-scoped rows from Postgres into in-memory db (post-login RLS). */
+  private async hydrateFromRemote(): Promise<void> {
+    try {
+      const ok = await db.tryHydrateFromSupabase?.();
+      if (ok) console.info('[auth] Hydrated application state from Supabase');
+    } catch (e) {
+      console.warn('[auth] Post-login hydrate failed', e);
+    }
+  }
+
   private async restoreSession() {
     try {
       if (isSupabaseConfigured) {
@@ -39,6 +49,7 @@ class AuthService {
         if (user) {
           this.currentUser = user;
           this.currentOrg = null;
+          await this.hydrateFromRemote();
           this.notify();
           return;
         }
@@ -79,10 +90,6 @@ class AuthService {
     return this.currentUser !== null;
   }
 
-  /**
-   * Local/demo login against seeded db.users — always available for presentation
-   * when Supabase has no matching rows yet.
-   */
   private loginAgainstLocalSeed(
     organizationCode: string,
     username: string
@@ -94,19 +101,6 @@ class AuthService {
       const superAdmin = db.users.find((u) => u.role === 'super_admin');
       if (superAdmin) {
         this.setUser(superAdmin);
-        try {
-          db.logAudit(
-            superAdmin.id,
-            superAdmin.name,
-            'LOGIN',
-            'User',
-            superAdmin.id,
-            undefined,
-            'Super Admin logged in (demo/local)'
-          );
-        } catch {
-          /* ignore audit failures */
-        }
         return { success: true, user: superAdmin };
       }
     }
@@ -153,25 +147,9 @@ class AuthService {
     }
 
     this.setUser(user);
-    try {
-      db.logAudit(
-        user.id,
-        user.name,
-        'LOGIN',
-        'User',
-        user.id,
-        org.id,
-        `User logged into ${org.company_name}`
-      );
-    } catch {
-      /* ignore */
-    }
     return { success: true, user };
   }
 
-  /**
-   * Synchronous login — uses local seed. Prefer loginAsync in UI.
-   */
   public login(
     organizationCode: string,
     username: string,
@@ -180,12 +158,6 @@ class AuthService {
     return this.loginAgainstLocalSeed(organizationCode, username);
   }
 
-  /**
-   * Dual-mode login:
-   * 1) Try Supabase when configured
-   * 2) If remote has no org/user (empty project) or auth fails with "not found",
-   *    fall back to local seed so demos/presentations never brick.
-   */
   public async loginAsync(
     organizationCode: string,
     username: string,
@@ -198,11 +170,13 @@ class AuthService {
           this.currentUser = result.user;
           this.currentOrg = result.organization || null;
           localStorage.setItem(AUTH_STORAGE_KEY, result.user.id);
+          await this.hydrateFromRemote();
           this.notify();
           return { success: true, user: result.user };
         }
 
         const err = (result.error || '').toLowerCase();
+        // Only fall back to local seed when remote has no matching rows yet
         const shouldFallback =
           err.includes('not found') ||
           err.includes('invalid organisation') ||
@@ -211,11 +185,11 @@ class AuthService {
           err.includes('empty');
 
         if (shouldFallback) {
-          console.warn('[auth] Supabase login missed seed — falling back to local demo users.', result.error);
+          console.warn('[auth] Supabase login missed seed — local demo fallback.', result.error);
           return this.loginAgainstLocalSeed(organizationCode, username);
         }
 
-        // Wrong password on a real remote user — do not silently bypass
+        // Wrong password / auth errors: do not bypass
         return { success: false, error: result.error || 'Login failed' };
       } catch (e) {
         console.warn('[auth] Supabase login error — demo fallback.', e);
@@ -227,20 +201,6 @@ class AuthService {
   }
 
   public async logout() {
-    if (this.currentUser && !isSupabaseConfigured) {
-      try {
-        db.logAudit(
-          this.currentUser.id,
-          this.currentUser.name,
-          'LOGOUT',
-          'User',
-          this.currentUser.id,
-          this.currentUser.organization_id
-        );
-      } catch {
-        /* ignore */
-      }
-    }
     if (isSupabaseConfigured) {
       try {
         await supabaseLogout();
@@ -254,7 +214,6 @@ class AuthService {
     this.notify();
   }
 
-  /** Instant role switch for demos — uses local seed users when present. */
   public switchDemoUser(role: UserRole) {
     let target = db.users.find((u) => u.role === role);
     if (!target) target = db.users[0];
