@@ -27,7 +27,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onLoginSuccess,
 }) => {
   const [orgCode, setOrgCode] = useState('GAB-070826');
-  const [username, setUsername] = useState('nandi.tenant');
+  const [username, setUsername] = useState('sipho.manager');
   const [password, setPassword] = useState('password123');
   const [isCaptchaChecked, setIsCaptchaChecked] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -41,23 +41,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     else if (onRegisterClick) onRegisterClick();
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const completeLogin = async (code: string, user: string, pass: string) => {
     setErrorMsg('');
-
     if (!isCaptchaChecked) {
       setErrorMsg('Please confirm you are not a robot by checking the security verification.');
       return;
     }
-
-    if (!orgCode.trim() || !username.trim()) {
+    if (!code.trim() || !user.trim()) {
       setErrorMsg('Organisation code and username are required.');
       return;
     }
-
     setLoading(true);
     try {
-      const res = await auth.loginAsync(orgCode, username, password);
+      const res = await auth.loginAsync(code, user, pass);
       if (res.success) {
         onLoginSuccess?.();
         onClose();
@@ -71,11 +67,32 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
-  const handleQuickDemo = (code: string, user: string) => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await completeLogin(orgCode, username, password);
+  };
+
+  /** One-click: fill fields AND sign in immediately (presentation-safe). */
+  const handleQuickDemo = async (code: string, user: string) => {
     setOrgCode(code);
     setUsername(user);
     setPassword('password123');
+    setIsCaptchaChecked(true);
     setErrorMsg('');
+    setLoading(true);
+    try {
+      const res = await auth.loginAsync(code, user, 'password123');
+      if (res.success) {
+        onLoginSuccess?.();
+        onClose();
+      } else {
+        setErrorMsg(res.error || 'Demo login failed.');
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Unexpected login error.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -177,22 +194,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               disabled={loading}
               className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-600/25 transition"
             >
-              {loading ? 'Verifying credentials…' : 'Sign In to Dashboard'}
+              {loading ? 'Signing in…' : 'Sign In to Dashboard'}
             </button>
           </form>
 
           <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-amber-500" />
-              <span>One-click demo accounts (match seed data)</span>
+              <span>One-click demo — signs you in immediately</span>
             </div>
             <div className="grid grid-cols-2 gap-1.5 text-[11px]">
               {DEMO_ACCOUNTS.map((acct) => (
                 <button
                   key={acct.username}
                   type="button"
+                  disabled={loading}
                   onClick={() => handleQuickDemo(acct.orgCode, acct.username)}
-                  className={`p-1.5 text-left rounded-lg transition ${
+                  className={`p-1.5 text-left rounded-lg transition disabled:opacity-50 ${
                     'danger' in acct && acct.danger
                       ? 'bg-red-50 dark:bg-red-950/30 hover:bg-red-100 text-red-700 dark:text-red-300'
                       : 'bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-slate-300'

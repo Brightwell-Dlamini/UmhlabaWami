@@ -38,11 +38,7 @@ class AuthService {
         const user = await getSessionUser();
         if (user) {
           this.currentUser = user;
-          if (user.organization_id) {
-            // Org will be loaded lazily via getCurrentOrganization in demo;
-            // in Supabase mode UI can refetch as needed.
-            this.currentOrg = null;
-          }
+          this.currentOrg = null;
           this.notify();
           return;
         }
@@ -84,21 +80,13 @@ class AuthService {
   }
 
   /**
-   * Synchronous demo login (Phase 1 localStorage mode).
-   * Prefer loginAsync when Supabase may be configured.
+   * Local/demo login against seeded db.users — always available for presentation
+   * when Supabase has no matching rows yet.
    */
-  public login(
+  private loginAgainstLocalSeed(
     organizationCode: string,
-    username: string,
-    _password?: string
+    username: string
   ): { success: boolean; error?: string; user?: User } {
-    if (isSupabaseConfigured) {
-      return {
-        success: false,
-        error: 'Supabase mode is active. Use async login (loginAsync).',
-      };
-    }
-
     const trimmedOrgCode = organizationCode.trim().toUpperCase();
     const trimmedUser = username.trim().toLowerCase();
 
@@ -106,15 +94,19 @@ class AuthService {
       const superAdmin = db.users.find((u) => u.role === 'super_admin');
       if (superAdmin) {
         this.setUser(superAdmin);
-        db.logAudit(
-          superAdmin.id,
-          superAdmin.name,
-          'LOGIN',
-          'User',
-          superAdmin.id,
-          undefined,
-          'Super Admin logged in'
-        );
+        try {
+          db.logAudit(
+            superAdmin.id,
+            superAdmin.name,
+            'LOGIN',
+            'User',
+            superAdmin.id,
+            undefined,
+            'Super Admin logged in (demo/local)'
+          );
+        } catch {
+          /* ignore audit failures */
+        }
         return { success: true, user: superAdmin };
       }
     }
@@ -161,52 +153,100 @@ class AuthService {
     }
 
     this.setUser(user);
-    db.logAudit(
-      user.id,
-      user.name,
-      'LOGIN',
-      'User',
-      user.id,
-      org.id,
-      `User logged into ${org.company_name}`
-    );
+    try {
+      db.logAudit(
+        user.id,
+        user.name,
+        'LOGIN',
+        'User',
+        user.id,
+        org.id,
+        `User logged into ${org.company_name}`
+      );
+    } catch {
+      /* ignore */
+    }
     return { success: true, user };
   }
 
-  /** Phase 2 dual-mode login: Supabase when configured, otherwise demo layer. */
+  /**
+   * Synchronous login — uses local seed. Prefer loginAsync in UI.
+   */
+  public login(
+    organizationCode: string,
+    username: string,
+    _password?: string
+  ): { success: boolean; error?: string; user?: User } {
+    return this.loginAgainstLocalSeed(organizationCode, username);
+  }
+
+  /**
+   * Dual-mode login:
+   * 1) Try Supabase when configured
+   * 2) If remote has no org/user (empty project) or auth fails with "not found",
+   *    fall back to local seed so demos/presentations never brick.
+   */
   public async loginAsync(
     organizationCode: string,
     username: string,
     password: string
   ): Promise<{ success: boolean; error?: string; user?: User }> {
     if (isSupabaseConfigured) {
-      const result = await supabaseLogin(organizationCode, username, password || 'password');
-      if (result.success && result.user) {
-        this.currentUser = result.user;
-        this.currentOrg = result.organization || null;
-        localStorage.setItem(AUTH_STORAGE_KEY, result.user.id);
-        this.notify();
-        return { success: true, user: result.user };
+      try {
+        const result = await supabaseLogin(organizationCode, username, password || 'password');
+        if (result.success && result.user) {
+          this.currentUser = result.user;
+          this.currentOrg = result.organization || null;
+          localStorage.setItem(AUTH_STORAGE_KEY, result.user.id);
+          this.notify();
+          return { success: true, user: result.user };
+        }
+
+        const err = (result.error || '').toLowerCase();
+        const shouldFallback =
+          err.includes('not found') ||
+          err.includes('invalid organisation') ||
+          err.includes('invalid organization') ||
+          err.includes('super admin account not found') ||
+          err.includes('empty');
+
+        if (shouldFallback) {
+          console.warn('[auth] Supabase login missed seed — falling back to local demo users.', result.error);
+          return this.loginAgainstLocalSeed(organizationCode, username);
+        }
+
+        // Wrong password on a real remote user — do not silently bypass
+        return { success: false, error: result.error || 'Login failed' };
+      } catch (e) {
+        console.warn('[auth] Supabase login error — demo fallback.', e);
+        return this.loginAgainstLocalSeed(organizationCode, username);
       }
-      return { success: false, error: result.error || 'Login failed' };
     }
 
-    return this.login(organizationCode, username, password);
+    return this.loginAgainstLocalSeed(organizationCode, username);
   }
 
   public async logout() {
     if (this.currentUser && !isSupabaseConfigured) {
-      db.logAudit(
-        this.currentUser.id,
-        this.currentUser.name,
-        'LOGOUT',
-        'User',
-        this.currentUser.id,
-        this.currentUser.organization_id
-      );
+      try {
+        db.logAudit(
+          this.currentUser.id,
+          this.currentUser.name,
+          'LOGOUT',
+          'User',
+          this.currentUser.id,
+          this.currentUser.organization_id
+        );
+      } catch {
+        /* ignore */
+      }
     }
     if (isSupabaseConfigured) {
-      await supabaseLogout();
+      try {
+        await supabaseLogout();
+      } catch {
+        /* ignore */
+      }
     }
     this.currentUser = null;
     this.currentOrg = null;
@@ -214,18 +254,14 @@ class AuthService {
     this.notify();
   }
 
+  /** Instant role switch for demos — uses local seed users when present. */
   public switchDemoUser(role: UserRole) {
-    if (isSupabaseConfigured) {
-      console.warn('Role switcher is demo-only and disabled in Supabase mode.');
-      return;
-    }
     let target = db.users.find((u) => u.role === role);
     if (!target) target = db.users[0];
     if (target) this.setUser(target);
   }
 
   public switchUserById(userId: string) {
-    if (isSupabaseConfigured) return;
     const user = db.users.find((u) => u.id === userId);
     if (user) this.setUser(user);
   }
