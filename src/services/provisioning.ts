@@ -1,5 +1,6 @@
 /**
  * UI-driven provisioning: organisations, staff users (Auth + profile), listing leads.
+ * Org registration MUST create Auth + public.users so login works after approval.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { db } from './db';
@@ -10,17 +11,73 @@ function friendlyError(err: { message?: string; code?: string; details?: string;
   const m = `${err.message || ''} ${err.details || ''} ${err.hint || ''}`;
   if (m.includes('duplicate') || err.code === '23505') return 'This email or organisation is already registered.';
   if (m.includes('row-level security') || m.includes('RLS') || m.toLowerCase().includes('permission denied')) {
-    return 'Permission denied while saving. Run public/fix-approval-and-register.sql in Supabase, then try again.';
+    return 'Permission denied while saving. Run public/fix-org-admin-login.sql in Supabase, then try again.';
   }
   if (m.includes('Failed to fetch') || m.includes('Network')) {
     return 'Network error. Check your connection and try again.';
   }
   if (m.includes('Could not find the function')) {
-    return 'Database function missing. Run public/fix-approval-and-register.sql in the Supabase SQL Editor.';
+    return 'Database function missing. Run public/fix-org-admin-login.sql in the Supabase SQL Editor.';
   }
   return err.message || 'Could not complete this action. Please try again.';
 }
 
+async function bootstrapAdminProfile(input: {
+  orgId: string;
+  authUserId?: string | null;
+  username: string;
+  name: string;
+  email: string;
+  phone?: string;
+  status: 'Pending' | 'Active';
+}): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'No client' };
+
+  const { error: rpcErr } = await supabase.rpc('bootstrap_org_admin_user', {
+    p_org_id: input.orgId,
+    p_auth_user_id: input.authUserId || null,
+    p_username: input.username,
+    p_name: input.name,
+    p_email: input.email,
+    p_phone: input.phone || null,
+    p_status: input.status,
+  });
+
+  if (!rpcErr) return { success: true };
+
+  // Fallback direct insert
+  const row: Record<string, unknown> = {
+    organization_id: input.orgId,
+    username: input.username,
+    name: input.name,
+    email: input.email,
+    phone: input.phone || null,
+    role: 'admin',
+    status: input.status,
+  };
+  if (input.authUserId) row.id = input.authUserId;
+
+  const { error } = await supabase.from('users').upsert(row, { onConflict: 'id' });
+  if (error) {
+    // try without id
+    const { error: e2 } = await supabase.from('users').insert({
+      organization_id: input.orgId,
+      username: input.username,
+      name: input.name,
+      email: input.email,
+      phone: input.phone || null,
+      role: 'admin',
+      status: input.status,
+    });
+    if (e2) return { success: false, error: friendlyError(e2) };
+  }
+  return { success: true };
+}
+
+/**
+ * Public self-registration.
+ * Creates: Auth user (password) → organisations row → public.users (Pending) → signs out.
+ */
 export async function submitOrganisationRegistration(input: {
   company_name: string;
   owner_name: string;
@@ -39,29 +96,44 @@ export async function submitOrganisationRegistration(input: {
 
   const email = input.email.toLowerCase().trim();
   const username = (input.preferred_username || email.split('@')[0]).toLowerCase().trim();
+  const password = input.password || '';
 
-  // 1) Create Auth account so the owner can sign in after approval (password never stored in our tables)
-  if (input.password && input.password.length >= 8) {
-    const { error: signUpErr } = await supabase.auth.signUp({
-      email,
-      password: input.password,
-      options: {
-        data: {
-          full_name: input.owner_name,
-          username,
-          role: 'admin',
-        },
-      },
-    });
-    if (signUpErr && !signUpErr.message.toLowerCase().includes('already')) {
-      console.warn('[provisioning] owner signUp', signUpErr.message);
-      // Continue — org row is still needed; Auth may already exist
-    }
-    // Sign out so visitor is not left as the new user
-    await supabase.auth.signOut();
+  if (password.length < 8) {
+    return { success: false, error: 'Portal password must be at least 8 characters.' };
   }
 
-  // 2) Organisation application via SECURITY DEFINER RPC
+  // 1) Create Auth account FIRST so the password is real and login can work after approval
+  const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: input.owner_name,
+        username,
+        role: 'admin',
+      },
+    },
+  });
+
+  if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) {
+    // "User already registered" is OK if they re-submit; otherwise hard fail
+    if (!signUpErr.message.toLowerCase().includes('already')) {
+      return {
+        success: false,
+        error: `Could not create login account: ${signUpErr.message}. Check Authentication settings (disable email confirm for testing if needed).`,
+      };
+    }
+  }
+
+  let authUserId = signUpData.user?.id || null;
+
+  // If already registered, try sign-in to get id (only works if password matches)
+  if (!authUserId) {
+    const { data: signInData } = await supabase.auth.signInWithPassword({ email, password });
+    authUserId = signInData.user?.id || null;
+  }
+
+  // 2) Create organisation application
   const { data: rpcData, error: rpcError } = await supabase.rpc('register_organization_application', {
     p_company_name: input.company_name,
     p_owner_name: input.owner_name,
@@ -74,10 +146,13 @@ export async function submitOrganisationRegistration(input: {
     p_registration_notes: input.registration_notes || null,
   });
 
-  if (rpcError) {
-    // Fallback: direct insert
-    console.warn('[provisioning] register RPC', rpcError.message);
-    const code = `PEND-${Date.now().toString(36).toUpperCase().slice(-8)}`;
+  let org: Organization | null = null;
+
+  if (!rpcError && rpcData) {
+    org = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as Organization;
+  } else {
+    // Fallback insert
+    const code = `PEND-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
     const { data, error } = await supabase
       .from('organizations')
       .insert({
@@ -99,17 +174,40 @@ export async function submitOrganisationRegistration(input: {
       })
       .select('*')
       .single();
-
-    if (error) return { success: false, error: friendlyError(error) };
-    const org = data as Organization;
-    db.organizations.unshift(org);
-    db.saveToStorage();
-    return { success: true, organization: org };
+    if (error) {
+      await supabase.auth.signOut();
+      return { success: false, error: friendlyError(rpcError || error) };
+    }
+    org = data as Organization;
   }
 
-  const org = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as Organization;
+  if (!org) {
+    await supabase.auth.signOut();
+    return { success: false, error: 'Organisation could not be created.' };
+  }
+
+  // 3) Create public.users profile (Pending until Super Admin approves)
+  const profile = await bootstrapAdminProfile({
+    orgId: org.id,
+    authUserId,
+    username,
+    name: input.owner_name,
+    email,
+    phone: input.phone,
+    status: 'Pending',
+  });
+
+  if (!profile.success) {
+    console.warn('[provisioning] profile bootstrap failed', profile.error);
+    // Still return success for org — Super Admin can provision login later
+  }
+
+  // 4) Sign out so public site is not left as the new user
+  await supabase.auth.signOut();
+
   db.organizations.unshift(org);
   db.saveToStorage();
+
   return { success: true, organization: org };
 }
 
@@ -121,9 +219,10 @@ export async function approveOrganisation(
     return { success: false, error: 'Service unavailable.' };
   }
 
-  const code = opts.organization_code?.trim() || `ORG-${Date.now().toString().slice(-6)}`;
+  const code =
+    opts.organization_code?.trim() ||
+    `ORG-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-  // Prefer SECURITY DEFINER RPC
   const { data: rpcData, error: rpcError } = await supabase.rpc('approve_organization_application', {
     p_org_id: orgId,
     p_organization_code: code,
@@ -153,35 +252,29 @@ export async function approveOrganisation(
 
   if (!org) return { success: false, error: 'Approval failed.' };
 
-  // Bootstrap organisation admin in public.users (Auth account already created at registration)
   const username =
     (org as Organization & { preferred_username?: string }).preferred_username ||
     org.email.split('@')[0];
 
-  const { data: existing } = await supabase.from('users').select('id').eq('email', org.email).maybeSingle();
+  // Activate / create public.users admin profile
+  const boot = await bootstrapAdminProfile({
+    orgId: org.id,
+    username: String(username).toLowerCase(),
+    name: org.owner_name,
+    email: org.email,
+    phone: org.phone,
+    status: 'Active',
+  });
 
-  if (!existing) {
-    const { error: userErr } = await supabase.from('users').insert({
-      organization_id: org.id,
-      username: String(username).toLowerCase(),
-      name: org.owner_name,
-      email: org.email,
-      phone: org.phone,
-      role: 'admin',
-      status: 'Active',
-    });
-    if (userErr) console.warn('[provisioning] admin user bootstrap', userErr.message);
-  } else {
-    await supabase
-      .from('users')
-      .update({
-        organization_id: org.id,
-        role: 'admin',
-        status: 'Active',
-        username: String(username).toLowerCase(),
-      })
-      .eq('email', org.email);
+  if (!boot.success) {
+    console.warn('[provisioning] approve profile', boot.error);
   }
+
+  // Also force-update any existing row to Active
+  await supabase
+    .from('users')
+    .update({ status: 'Active', organization_id: org.id, role: 'admin' })
+    .eq('email', org.email);
 
   const idx = db.organizations.findIndex((o) => o.id === orgId);
   if (idx >= 0) db.organizations[idx] = org;
@@ -190,6 +283,99 @@ export async function approveOrganisation(
   await db.tryHydrateFromSupabase?.();
 
   return { success: true, organization: org };
+}
+
+/**
+ * Super Admin recovery: create Auth + public.users for an org that was approved
+ * without a login (e.g. TES-260910). Sets a new password the owner can use immediately.
+ */
+export async function provisionOrgAdminLogin(input: {
+  orgId: string;
+  password: string;
+  username?: string;
+}): Promise<{ success: boolean; error?: string; username?: string; email?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, error: 'Service unavailable.' };
+  }
+  if (!input.password || input.password.length < 8) {
+    return { success: false, error: 'Password must be at least 8 characters.' };
+  }
+
+  const { data: org, error: orgErr } = await supabase
+    .from('organizations')
+    .select('*')
+    .eq('id', input.orgId)
+    .single();
+
+  if (orgErr || !org) return { success: false, error: 'Organisation not found.' };
+
+  const email = String(org.email).toLowerCase();
+  const username = (
+    input.username ||
+    org.preferred_username ||
+    email.split('@')[0]
+  )
+    .toLowerCase()
+    .trim();
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const adminSession = sessionData.session;
+
+  // Create Auth user (or confirm existing)
+  const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+    email,
+    password: input.password,
+    options: {
+      data: { full_name: org.owner_name, username, role: 'admin' },
+    },
+  });
+
+  if (signUpErr && !signUpErr.message.toLowerCase().includes('already')) {
+    // If already registered, password cannot be changed from client without service role.
+    // Tell admin to update password in Supabase Auth dashboard OR use a new email.
+    if (adminSession) {
+      await supabase.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      });
+    }
+    return {
+      success: false,
+      error: `Auth: ${signUpErr.message}. If this email already exists in Authentication → Users, set their password there, then use Provision again only for the profile.`,
+    };
+  }
+
+  const authUserId = signUpData.user?.id || null;
+
+  // Restore Super Admin session immediately
+  if (adminSession) {
+    await supabase.auth.setSession({
+      access_token: adminSession.access_token,
+      refresh_token: adminSession.refresh_token,
+    });
+  }
+
+  // Ensure preferred_username stored on org
+  await supabase
+    .from('organizations')
+    .update({ preferred_username: username, status: org.status === 'Pending Approval' ? org.status : 'Active' })
+    .eq('id', input.orgId);
+
+  const boot = await bootstrapAdminProfile({
+    orgId: input.orgId,
+    authUserId,
+    username,
+    name: org.owner_name,
+    email,
+    phone: org.phone,
+    status: 'Active',
+  });
+
+  if (!boot.success) return { success: false, error: boot.error };
+
+  await db.tryHydrateFromSupabase?.();
+
+  return { success: true, username, email };
 }
 
 export async function rejectOrganisation(
@@ -206,10 +392,7 @@ export async function rejectOrganisation(
   });
 
   if (rpcError) {
-    const { error } = await supabase
-      .from('organizations')
-      .update({ status: 'Rejected' })
-      .eq('id', orgId);
+    const { error } = await supabase.from('organizations').update({ status: 'Rejected' }).eq('id', orgId);
     if (error) return { success: false, error: friendlyError(error) };
   }
 
@@ -240,7 +423,7 @@ export async function createStaffUser(input: {
   const { data: sessionData } = await supabase.auth.getSession();
   const adminSession = sessionData.session;
 
-  const { error: signUpErr } = await supabase.auth.signUp({
+  const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
     email,
     password: input.password,
     options: {
@@ -253,7 +436,7 @@ export async function createStaffUser(input: {
   });
 
   if (signUpErr && !signUpErr.message.toLowerCase().includes('already')) {
-    console.warn('[provisioning] signUp', signUpErr.message);
+    return { success: false, error: friendlyError(signUpErr) };
   }
 
   if (adminSession) {
@@ -263,21 +446,40 @@ export async function createStaffUser(input: {
     });
   }
 
-  const { data, error } = await supabase
-    .from('users')
-    .insert({
-      organization_id: input.organization_id,
-      username: input.username.trim().toLowerCase(),
-      name: input.name.trim(),
-      email,
-      phone: input.phone || null,
-      role: input.role,
-      status: 'Active',
-    })
-    .select('*')
-    .single();
+  const authUserId = signUpData?.user?.id || null;
+  const row: Record<string, unknown> = {
+    organization_id: input.organization_id,
+    username: input.username.trim().toLowerCase(),
+    name: input.name.trim(),
+    email,
+    phone: input.phone || null,
+    role: input.role,
+    status: 'Active',
+  };
+  if (authUserId) row.id = authUserId;
 
-  if (error) return { success: false, error: friendlyError(error) };
+  const { data, error } = await supabase.from('users').insert(row).select('*').single();
+
+  if (error) {
+    const { data: d2, error: e2 } = await supabase
+      .from('users')
+      .insert({
+        organization_id: input.organization_id,
+        username: input.username.trim().toLowerCase(),
+        name: input.name.trim(),
+        email,
+        phone: input.phone || null,
+        role: input.role,
+        status: 'Active',
+      })
+      .select('*')
+      .single();
+    if (e2) return { success: false, error: friendlyError(e2) };
+    const user = d2 as User;
+    db.users.push(user);
+    db.saveToStorage();
+    return { success: true, user };
+  }
 
   const user = data as User;
   db.users.push(user);
@@ -311,38 +513,6 @@ export async function submitListingLead(input: {
     status: 'New',
   });
 
-  if (error) {
-    console.warn('[provisioning] listing lead', error.message);
-    return { success: false, error: friendlyError(error) };
-  }
+  if (error) return { success: false, error: friendlyError(error) };
   return { success: true };
-}
-
-export async function uploadUserFile(
-  file: File,
-  folder: string
-): Promise<{ success: boolean; url?: string; error?: string }> {
-  if (!file) return { success: false, error: 'No file selected.' };
-  if (file.size > 5 * 1024 * 1024) {
-    return { success: false, error: 'File must be 5MB or smaller.' };
-  }
-
-  if (isSupabaseConfigured && supabase) {
-    const path = `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const { error } = await supabase.storage.from('property-images').upload(path, file, {
-      upsert: true,
-      contentType: file.type,
-    });
-    if (!error) {
-      const { data } = supabase.storage.from('property-images').getPublicUrl(path);
-      return { success: true, url: data.publicUrl };
-    }
-  }
-
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve({ success: true, url: String(reader.result) });
-    reader.onerror = () => resolve({ success: false, error: 'Could not read file.' });
-    reader.readAsDataURL(file);
-  });
 }
