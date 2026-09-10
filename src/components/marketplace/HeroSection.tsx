@@ -1,6 +1,5 @@
 import React from 'react';
 import { Search, MapPin, Building, Maximize2, ArrowRight, ShieldCheck, Sparkles, CheckCircle } from 'lucide-react';
-import { Property } from '../../types';
 
 interface HeroSectionProps {
   onSearch: (filters: { location: string; propertyType: string; sizeCategory: string }) => void;
@@ -19,7 +18,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onSearch,
   onExploreClick,
   onManageClick,
-  onListLead,
   selectedLocation,
   setSelectedLocation,
   selectedType,
@@ -52,7 +50,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </h1>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed mb-8">
-            Discover available retail, commercial and rental spaces across Eswatini while managing your properties,
+            Discover available retail, commercial, land and rental spaces across Eswatini while managing your properties,
             tenants, SLAs and operations from one unified platform.
           </p>
 
@@ -106,6 +104,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <option value="Retail">Retail</option>
               <option value="Office">Office</option>
               <option value="Warehouse">Warehouse</option>
+              <option value="Land">Land / Plot</option>
             </select>
           </div>
           <div className="relative">
@@ -130,9 +129,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         </form>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Verified centres</span>
-          <span className="inline-flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-blue-500" /> SLA-backed ops</span>
-          <span className="inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5 text-amber-500" /> Built for Eswatini</span>
+          <span className="inline-flex items-center gap-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Verified centres
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5 text-blue-500" /> SLA-backed ops
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Built for Eswatini
+          </span>
         </div>
       </div>
     </section>
