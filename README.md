@@ -18,6 +18,8 @@ Commercial property management platform and vacant-space marketplace for the Kin
 | 1–6 | Foundation → Ecosystem | ✅ |
 | **7 Elevate** | **System-wide excellence (A–G)** | ✅ |
 
+**Client delivery report (all phases):** [docs/PHASES_1_TO_7_DELIVERY_REPORT.md](docs/PHASES_1_TO_7_DELIVERY_REPORT.md)
+
 ### Phase 7 — Elevate
 
 Open **Elevate (P7)** after login for:
@@ -56,6 +58,6 @@ cd UmhlabaWami && npm install && npm run dev
 
 ## Documentation
 
-[Roadmap](docs/ROADMAP.md) · [Phase 7](docs/PHASE7_COMPLETION.md) · [Vision](docs/VISION.md)
+[**Phases 1–7 delivery report**](docs/PHASES_1_TO_7_DELIVERY_REPORT.md) · [Roadmap](docs/ROADMAP.md) · [User Guide](docs/USER_GUIDE.md) · [Vision](docs/VISION.md) · [Owner setup](docs/OWNER_SETUP.md)
 
 **Umhlaba Wami** — Built for commercial property excellence in Eswatini.
