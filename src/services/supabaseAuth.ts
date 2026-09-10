@@ -3,10 +3,9 @@
  * Preserves Organisation Code + Username login UX while using real Auth sessions.
  *
  * Login strategy:
- * 1. Look up organisation by organization_code
- * 2. Look up app user by username within that org
- * 3. Sign in with the user's email via Supabase Auth (password)
- * 4. Session is managed by Supabase; profile is loaded from public.users
+ * 1. Call resolve_login RPC (SECURITY DEFINER) — works before session exists
+ * 2. Sign in with returned email + password via Supabase Auth
+ * 3. Load full profile from public.users under authenticated RLS
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { User, Organization, UserRole } from '../types';
@@ -59,6 +58,20 @@ function mapDbOrg(row: Record<string, unknown>): Organization {
   };
 }
 
+async function loadUserByEmail(email: string): Promise<User | null> {
+  if (!supabase) return null;
+  const { data: rows } = await supabase.from('users').select('*').eq('email', email).limit(1);
+  if (!rows?.length) return null;
+  return mapDbUser(rows[0] as Record<string, unknown>);
+}
+
+async function loadOrgById(orgId: string | undefined): Promise<Organization | null> {
+  if (!supabase || !orgId) return null;
+  const { data: rows } = await supabase.from('organizations').select('*').eq('id', orgId).limit(1);
+  if (!rows?.length) return null;
+  return mapDbOrg(rows[0] as Record<string, unknown>);
+}
+
 export async function supabaseLogin(
   organizationCode: string,
   username: string,
@@ -71,102 +84,72 @@ export async function supabaseLogin(
   const trimmedOrg = organizationCode.trim().toUpperCase();
   const trimmedUser = username.trim().toLowerCase();
 
-  // Super admin path: org code SUPER/ADMIN or username superadmin
-  if (trimmedUser === 'superadmin' || trimmedOrg === 'SUPER' || trimmedOrg === 'ADMIN') {
-    const { data: saRows, error: saErr } = await supabase
-      .from('users')
-      .select('*')
-      .eq('role', 'super_admin')
-      .eq('status', 'Active')
-      .limit(1);
+  // 1) Resolve email via SECURITY DEFINER RPC (works for anon)
+  const { data: resolved, error: rpcErr } = await supabase.rpc('resolve_login', {
+    p_org_code: trimmedOrg,
+    p_username: trimmedUser,
+  });
 
-    if (saErr || !saRows?.length) {
-      return { success: false, error: 'Super Admin account not found in database.' };
-    }
-
-    const sa = mapDbUser(saRows[0]);
-    const { error: authErr } = await supabase.auth.signInWithPassword({
-      email: sa.email,
-      password,
-    });
-
-    if (authErr) {
-      return {
-        success: false,
-        error: authErr.message || 'Invalid Super Admin credentials.',
-      };
-    }
-
-    return { success: true, user: sa, organization: null };
-  }
-
-  // Resolve organisation
-  const { data: orgRows, error: orgErr } = await supabase
-    .from('organizations')
-    .select('*')
-    .ilike('organization_code', trimmedOrg)
-    .limit(1);
-
-  if (orgErr || !orgRows?.length) {
+  if (rpcErr) {
     return {
       success: false,
-      error: `Invalid Organisation Code "${trimmedOrg}". Please verify with your property administration.`,
+      error: `Login resolver failed: ${rpcErr.message}. Did you run public/supabase-auth-bridge.sql?`,
     };
   }
 
-  const org = mapDbOrg(orgRows[0]);
-
-  if (org.status === 'Pending Approval') {
+  const row = Array.isArray(resolved) ? resolved[0] : resolved;
+  if (!row || !row.email) {
     return {
       success: false,
-      error: `Organisation "${org.company_name}" is currently Pending Approval from the Super Admin.`,
+      error: `User "${username}" not found for organisation code "${trimmedOrg}".`,
     };
   }
 
-  if (org.status === 'Suspended' || org.status === 'Rejected') {
+  if (row.organization_status === 'Pending Approval') {
     return {
       success: false,
-      error: `Organisation account is inactive (${org.status}). Please contact support.`,
+      error: `Organisation "${row.company_name}" is currently Pending Approval from the Super Admin.`,
     };
   }
 
-  // Resolve user within organisation
-  const { data: userRows, error: userErr } = await supabase
-    .from('users')
-    .select('*')
-    .eq('organization_id', org.id)
-    .or(`username.ilike.${trimmedUser},email.ilike.${trimmedUser}`)
-    .limit(1);
-
-  if (userErr || !userRows?.length) {
+  if (row.organization_status === 'Suspended' || row.organization_status === 'Rejected') {
     return {
       success: false,
-      error: `User "${username}" not found in organisation ${org.company_name}.`,
+      error: `Organisation account is inactive (${row.organization_status}). Please contact support.`,
     };
   }
 
-  const appUser = mapDbUser(userRows[0]);
-
-  if (appUser.status !== 'Active') {
-    return {
-      success: false,
-      error: `User account is currently ${appUser.status}.`,
-    };
+  if (row.user_status && row.user_status !== 'Active') {
+    return { success: false, error: `User account is currently ${row.user_status}.` };
   }
 
+  // 2) Supabase Auth password sign-in
   const { error: signInErr } = await supabase.auth.signInWithPassword({
-    email: appUser.email,
+    email: String(row.email),
     password,
   });
 
   if (signInErr) {
     return {
       success: false,
-      error: signInErr.message || 'Invalid password.',
+      error:
+        signInErr.message ||
+        'Invalid password. Create this user under Authentication → Users with the same email.',
     };
   }
 
-  return { success: true, user: appUser, organization: org };
+  // 3) Load full profile under authenticated RLS
+  const appUser = await loadUserByEmail(String(row.email));
+  if (!appUser) {
+    return {
+      success: false,
+      error: 'Auth succeeded but public.users profile was not found for this email.',
+    };
+  }
+
+  const organization = await loadOrgById(appUser.organization_id);
+
+  return { success: true, user: appUser, organization };
 }
 
 export async function supabaseLogout(): Promise<void> {
@@ -182,12 +165,5 @@ export async function getSessionUser(): Promise<User | null> {
   const session = sessionData.session;
   if (!session?.user?.email) return null;
 
-  const { data: rows } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', session.user.email)
-    .limit(1);
-
-  if (!rows?.length) return null;
-  return mapDbUser(rows[0]);
+  return loadUserByEmail(session.user.email);
 }
