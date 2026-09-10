@@ -1,6 +1,6 @@
 /**
- * Attaches Supabase hydrate helpers onto the singleton `db` instance.
- * Keeps the large db.ts seed file intact while enabling remote source-of-truth.
+ * Supabase hydrate helpers on the singleton `db` instance.
+ * Supabase-only mode: no localStorage seed.
  */
 import { db } from './db';
 import type { Organization, User, ShoppingCenter, Property, Shop, Tenant, Lease, Ticket } from '../types';
@@ -17,16 +17,15 @@ type Snapshot = {
 };
 
 function applyRemoteSnapshot(snap: Snapshot) {
-  if (snap.organizations?.length) db.organizations = snap.organizations;
-  if (snap.users?.length) db.users = snap.users;
-  if (snap.shoppingCenters?.length) db.shoppingCenters = snap.shoppingCenters;
-  if (snap.properties?.length) db.properties = snap.properties;
-  if (snap.shops?.length) db.shops = snap.shops;
-  if (snap.tenants?.length) db.tenants = snap.tenants;
-  if (snap.leases?.length) db.leases = snap.leases;
-  if (snap.tickets?.length) db.tickets = snap.tickets;
+  if (snap.organizations) db.organizations = snap.organizations;
+  if (snap.users) db.users = snap.users;
+  if (snap.shoppingCenters) db.shoppingCenters = snap.shoppingCenters;
+  if (snap.properties) db.properties = snap.properties;
+  if (snap.shops) db.shops = snap.shops;
+  if (snap.tenants) db.tenants = snap.tenants;
+  if (snap.leases) db.leases = snap.leases;
+  if (snap.tickets) db.tickets = snap.tickets;
 
-  // private methods exist at runtime on the instance
   const raw = db as unknown as {
     saveToStorage?: () => void;
     notifyListeners?: () => void;
@@ -46,11 +45,14 @@ function applyRemoteSnapshot(snap: Snapshot) {
 export async function tryHydrateFromSupabase(): Promise<boolean> {
   try {
     const { isSupabaseConfigured } = await import('../lib/supabase');
-    if (!isSupabaseConfigured) return false;
+    if (!isSupabaseConfigured) {
+      console.error('[db] Supabase is not configured');
+      return false;
+    }
     const { hydrateAll } = await import('./supabaseDb');
     const snap = await hydrateAll();
     if (!snap.organizations?.length && !snap.shops?.length) {
-      console.warn('[db] Supabase returned empty core tables — keep local seed.');
+      console.warn('[db] Supabase returned empty core tables — run seed-demo-data.sql');
       return false;
     }
     applyRemoteSnapshot(snap);
@@ -62,10 +64,31 @@ export async function tryHydrateFromSupabase(): Promise<boolean> {
     });
     return true;
   } catch (e) {
-    console.warn('[db] Supabase hydrate failed — using local seed.', e);
+    console.warn('[db] Supabase hydrate failed', e);
+    return false;
+  }
+}
+
+/** Boot-time public marketplace hydrate (anon-readable public listings). */
+export async function tryHydratePublicListings(): Promise<boolean> {
+  try {
+    const { isSupabaseConfigured } = await import('../lib/supabase');
+    if (!isSupabaseConfigured) return false;
+    const { hydratePublicListings } = await import('./supabaseDb');
+    const snap = await hydratePublicListings();
+    if (snap.shops?.length) db.shops = snap.shops;
+    if (snap.properties?.length) db.properties = snap.properties;
+    if (snap.shoppingCenters?.length) db.shoppingCenters = snap.shoppingCenters;
+    const raw = db as unknown as { notifyListeners?: () => void };
+    raw.notifyListeners?.();
+    return (snap.shops?.length || 0) > 0;
+  } catch (e) {
+    console.warn('[db] Public listings hydrate failed', e);
     return false;
   }
 }
 
 (db as unknown as { tryHydrateFromSupabase: typeof tryHydrateFromSupabase }).tryHydrateFromSupabase =
   tryHydrateFromSupabase;
+(db as unknown as { tryHydratePublicListings: typeof tryHydratePublicListings }).tryHydratePublicListings =
+  tryHydratePublicListings;
