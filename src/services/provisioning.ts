@@ -1,6 +1,6 @@
 /**
  * UI-driven provisioning: organisations, staff users (Auth + profile), listing leads.
- * Org registration MUST create Auth + public.users so login works after approval.
+ * Every login-capable user MUST have Auth + public.users.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { db } from './db';
@@ -45,7 +45,6 @@ async function bootstrapAdminProfile(input: {
 
   if (!rpcErr) return { success: true };
 
-  // Fallback direct insert
   const row: Record<string, unknown> = {
     organization_id: input.orgId,
     username: input.username,
@@ -59,7 +58,6 @@ async function bootstrapAdminProfile(input: {
 
   const { error } = await supabase.from('users').upsert(row, { onConflict: 'id' });
   if (error) {
-    // try without id
     const { error: e2 } = await supabase.from('users').insert({
       organization_id: input.orgId,
       username: input.username,
@@ -74,10 +72,6 @@ async function bootstrapAdminProfile(input: {
   return { success: true };
 }
 
-/**
- * Public self-registration.
- * Creates: Auth user (password) → organisations row → public.users (Pending) → signs out.
- */
 export async function submitOrganisationRegistration(input: {
   company_name: string;
   owner_name: string;
@@ -102,38 +96,29 @@ export async function submitOrganisationRegistration(input: {
     return { success: false, error: 'Portal password must be at least 8 characters.' };
   }
 
-  // 1) Create Auth account FIRST so the password is real and login can work after approval
   const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: {
-        full_name: input.owner_name,
-        username,
-        role: 'admin',
-      },
+      data: { full_name: input.owner_name, username, role: 'admin' },
     },
   });
 
   if (signUpErr && !signUpErr.message.toLowerCase().includes('already registered')) {
-    // "User already registered" is OK if they re-submit; otherwise hard fail
     if (!signUpErr.message.toLowerCase().includes('already')) {
       return {
         success: false,
-        error: `Could not create login account: ${signUpErr.message}. Check Authentication settings (disable email confirm for testing if needed).`,
+        error: `Could not create login account: ${signUpErr.message}. Disable email confirmation in Supabase Auth for testing if needed.`,
       };
     }
   }
 
   let authUserId = signUpData.user?.id || null;
-
-  // If already registered, try sign-in to get id (only works if password matches)
   if (!authUserId) {
     const { data: signInData } = await supabase.auth.signInWithPassword({ email, password });
     authUserId = signInData.user?.id || null;
   }
 
-  // 2) Create organisation application
   const { data: rpcData, error: rpcError } = await supabase.rpc('register_organization_application', {
     p_company_name: input.company_name,
     p_owner_name: input.owner_name,
@@ -151,7 +136,6 @@ export async function submitOrganisationRegistration(input: {
   if (!rpcError && rpcData) {
     org = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as Organization;
   } else {
-    // Fallback insert
     const code = `PEND-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
     const { data, error } = await supabase
       .from('organizations')
@@ -186,7 +170,6 @@ export async function submitOrganisationRegistration(input: {
     return { success: false, error: 'Organisation could not be created.' };
   }
 
-  // 3) Create public.users profile (Pending until Super Admin approves)
   const profile = await bootstrapAdminProfile({
     orgId: org.id,
     authUserId,
@@ -197,17 +180,11 @@ export async function submitOrganisationRegistration(input: {
     status: 'Pending',
   });
 
-  if (!profile.success) {
-    console.warn('[provisioning] profile bootstrap failed', profile.error);
-    // Still return success for org — Super Admin can provision login later
-  }
+  if (!profile.success) console.warn('[provisioning] profile bootstrap failed', profile.error);
 
-  // 4) Sign out so public site is not left as the new user
   await supabase.auth.signOut();
-
   db.organizations.unshift(org);
   db.saveToStorage();
-
   return { success: true, organization: org };
 }
 
@@ -256,7 +233,6 @@ export async function approveOrganisation(
     (org as Organization & { preferred_username?: string }).preferred_username ||
     org.email.split('@')[0];
 
-  // Activate / create public.users admin profile
   const boot = await bootstrapAdminProfile({
     orgId: org.id,
     username: String(username).toLowerCase(),
@@ -265,12 +241,8 @@ export async function approveOrganisation(
     phone: org.phone,
     status: 'Active',
   });
+  if (!boot.success) console.warn('[provisioning] approve profile', boot.error);
 
-  if (!boot.success) {
-    console.warn('[provisioning] approve profile', boot.error);
-  }
-
-  // Also force-update any existing row to Active
   await supabase
     .from('users')
     .update({ status: 'Active', organization_id: org.id, role: 'admin' })
@@ -285,10 +257,6 @@ export async function approveOrganisation(
   return { success: true, organization: org };
 }
 
-/**
- * Super Admin recovery: create Auth + public.users for an org that was approved
- * without a login (e.g. TES-260910). Sets a new password the owner can use immediately.
- */
 export async function provisionOrgAdminLogin(input: {
   orgId: string;
   password: string;
@@ -310,29 +278,20 @@ export async function provisionOrgAdminLogin(input: {
   if (orgErr || !org) return { success: false, error: 'Organisation not found.' };
 
   const email = String(org.email).toLowerCase();
-  const username = (
-    input.username ||
-    org.preferred_username ||
-    email.split('@')[0]
-  )
+  const username = (input.username || org.preferred_username || email.split('@')[0])
     .toLowerCase()
     .trim();
 
   const { data: sessionData } = await supabase.auth.getSession();
   const adminSession = sessionData.session;
 
-  // Create Auth user (or confirm existing)
   const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
     email,
     password: input.password,
-    options: {
-      data: { full_name: org.owner_name, username, role: 'admin' },
-    },
+    options: { data: { full_name: org.owner_name, username, role: 'admin' } },
   });
 
   if (signUpErr && !signUpErr.message.toLowerCase().includes('already')) {
-    // If already registered, password cannot be changed from client without service role.
-    // Tell admin to update password in Supabase Auth dashboard OR use a new email.
     if (adminSession) {
       await supabase.auth.setSession({
         access_token: adminSession.access_token,
@@ -341,13 +300,12 @@ export async function provisionOrgAdminLogin(input: {
     }
     return {
       success: false,
-      error: `Auth: ${signUpErr.message}. If this email already exists in Authentication → Users, set their password there, then use Provision again only for the profile.`,
+      error: `Auth: ${signUpErr.message}. If email exists under Authentication → Users, set password there, then Provision again for the profile.`,
     };
   }
 
   const authUserId = signUpData.user?.id || null;
 
-  // Restore Super Admin session immediately
   if (adminSession) {
     await supabase.auth.setSession({
       access_token: adminSession.access_token,
@@ -355,10 +313,12 @@ export async function provisionOrgAdminLogin(input: {
     });
   }
 
-  // Ensure preferred_username stored on org
   await supabase
     .from('organizations')
-    .update({ preferred_username: username, status: org.status === 'Pending Approval' ? org.status : 'Active' })
+    .update({
+      preferred_username: username,
+      status: org.status === 'Pending Approval' ? org.status : 'Active',
+    })
     .eq('id', input.orgId);
 
   const boot = await bootstrapAdminProfile({
@@ -372,9 +332,7 @@ export async function provisionOrgAdminLogin(input: {
   });
 
   if (!boot.success) return { success: false, error: boot.error };
-
   await db.tryHydrateFromSupabase?.();
-
   return { success: true, username, email };
 }
 
@@ -402,6 +360,10 @@ export async function rejectOrganisation(
   return { success: true };
 }
 
+/**
+ * Create any staff/tenant login: Auth account + public.users via SECURITY DEFINER RPC.
+ * Same path for property_manager, finance, maintenance, tenant, admin.
+ */
 export async function createStaffUser(input: {
   organization_id: string;
   name: string;
@@ -420,25 +382,39 @@ export async function createStaffUser(input: {
   }
 
   const email = input.email.trim().toLowerCase();
+  const username = input.username.trim().toLowerCase();
   const { data: sessionData } = await supabase.auth.getSession();
   const adminSession = sessionData.session;
 
+  // 1) Auth user with password
   const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
     email,
     password: input.password,
     options: {
       data: {
         full_name: input.name,
-        username: input.username,
+        username,
         role: input.role,
       },
     },
   });
 
   if (signUpErr && !signUpErr.message.toLowerCase().includes('already')) {
-    return { success: false, error: friendlyError(signUpErr) };
+    if (adminSession) {
+      await supabase.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      });
+    }
+    return {
+      success: false,
+      error: `Could not create Auth login: ${signUpErr.message}. Disable email confirmation if testing.`,
+    };
   }
 
+  const authUserId = signUpData?.user?.id || null;
+
+  // 2) Restore creator session (Admin / Super Admin must stay logged in)
   if (adminSession) {
     await supabase.auth.setSession({
       access_token: adminSession.access_token,
@@ -446,42 +422,58 @@ export async function createStaffUser(input: {
     });
   }
 
-  const authUserId = signUpData?.user?.id || null;
-  const row: Record<string, unknown> = {
-    organization_id: input.organization_id,
-    username: input.username.trim().toLowerCase(),
-    name: input.name.trim(),
-    email,
-    phone: input.phone || null,
-    role: input.role,
-    status: 'Active',
-  };
-  if (authUserId) row.id = authUserId;
+  // 3) public.users via SECURITY DEFINER (avoids RLS traps)
+  const { data: rpcUser, error: rpcErr } = await supabase.rpc('bootstrap_staff_user', {
+    p_org_id: input.organization_id,
+    p_auth_user_id: authUserId,
+    p_username: username,
+    p_name: input.name.trim(),
+    p_email: email,
+    p_phone: input.phone || null,
+    p_role: input.role,
+    p_status: 'Active',
+  });
 
-  const { data, error } = await supabase.from('users').insert(row).select('*').single();
+  let user: User | null = null;
 
-  if (error) {
-    const { data: d2, error: e2 } = await supabase
-      .from('users')
-      .insert({
-        organization_id: input.organization_id,
-        username: input.username.trim().toLowerCase(),
-        name: input.name.trim(),
-        email,
-        phone: input.phone || null,
-        role: input.role,
-        status: 'Active',
-      })
-      .select('*')
-      .single();
-    if (e2) return { success: false, error: friendlyError(e2) };
-    const user = d2 as User;
-    db.users.push(user);
-    db.saveToStorage();
-    return { success: true, user };
+  if (!rpcErr && rpcUser) {
+    user = (Array.isArray(rpcUser) ? rpcUser[0] : rpcUser) as User;
+  } else {
+    const row: Record<string, unknown> = {
+      organization_id: input.organization_id,
+      username,
+      name: input.name.trim(),
+      email,
+      phone: input.phone || null,
+      role: input.role,
+      status: 'Active',
+    };
+    if (authUserId) row.id = authUserId;
+
+    const { data, error } = await supabase.from('users').insert(row).select('*').single();
+    if (error) {
+      const { data: d2, error: e2 } = await supabase
+        .from('users')
+        .insert({
+          organization_id: input.organization_id,
+          username,
+          name: input.name.trim(),
+          email,
+          phone: input.phone || null,
+          role: input.role,
+          status: 'Active',
+        })
+        .select('*')
+        .single();
+      if (e2) return { success: false, error: friendlyError(rpcErr || e2) };
+      user = d2 as User;
+    } else {
+      user = data as User;
+    }
   }
 
-  const user = data as User;
+  if (!user) return { success: false, error: 'Profile was not created.' };
+
   db.users.push(user);
   db.saveToStorage();
   return { success: true, user };
