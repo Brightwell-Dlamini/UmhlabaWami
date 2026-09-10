@@ -1,14 +1,14 @@
 -- ============================================================================
--- FIX: Organisation admin login (Auth + public.users)
--- Run this entire script in Supabase SQL Editor once.
+-- FIX: Organisation / staff login (Auth + public.users + resolve_login)
+-- Run this ENTIRE script in Supabase SQL Editor.
 -- ============================================================================
 
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS preferred_username VARCHAR(100);
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS registration_notes TEXT;
 
--- Ensure users table can accept inserts (id may or may not FK to auth.users)
--- Many projects use: id UUID PRIMARY KEY DEFAULT gen_random_uuid()
--- If id references auth.users, bootstrap must use the Auth user UUID.
+-- Must DROP before recreate when return type / OUT params change
+DROP FUNCTION IF EXISTS public.resolve_login(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.resolve_login(text, text);
 
 CREATE OR REPLACE FUNCTION public.bootstrap_org_admin_user(
   p_org_id UUID,
@@ -46,7 +46,6 @@ BEGIN
   v_name := COALESCE(NULLIF(trim(p_name), ''), v_org.owner_name, 'Organisation Admin');
   v_phone := COALESCE(NULLIF(trim(p_phone), ''), v_org.phone);
 
-  -- Prefer match by email
   SELECT * INTO v_user FROM public.users WHERE lower(email) = v_email LIMIT 1;
 
   IF v_user IS NOT NULL THEN
@@ -55,14 +54,13 @@ BEGIN
       username = v_username,
       name = v_name,
       phone = COALESCE(v_phone, phone),
-      role = 'admin',
+      role = COALESCE(role, 'admin'),
       status = COALESCE(NULLIF(trim(p_status), ''), 'Active')
     WHERE id = v_user.id
     RETURNING * INTO v_user;
     RETURN v_user;
   END IF;
 
-  -- Insert new profile (use Auth UUID when provided so it matches auth.users)
   IF p_auth_user_id IS NOT NULL THEN
     INSERT INTO public.users (
       id, organization_id, username, name, email, phone, role, status
@@ -96,7 +94,85 @@ $$;
 GRANT EXECUTE ON FUNCTION public.bootstrap_org_admin_user(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT)
   TO anon, authenticated;
 
--- Login resolver: org code + username → email (works before session)
+-- Generic staff/tenant profile bootstrap (any role)
+CREATE OR REPLACE FUNCTION public.bootstrap_staff_user(
+  p_org_id UUID,
+  p_auth_user_id UUID DEFAULT NULL,
+  p_username TEXT DEFAULT NULL,
+  p_name TEXT DEFAULT NULL,
+  p_email TEXT DEFAULT NULL,
+  p_phone TEXT DEFAULT NULL,
+  p_role TEXT DEFAULT 'property_manager',
+  p_status TEXT DEFAULT 'Active'
+)
+RETURNS public.users
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user public.users;
+  v_username TEXT;
+  v_email TEXT;
+  v_name TEXT;
+  v_role TEXT;
+BEGIN
+  v_email := lower(trim(p_email));
+  IF v_email IS NULL OR v_email = '' THEN
+    RAISE EXCEPTION 'Email required';
+  END IF;
+  v_username := lower(trim(COALESCE(NULLIF(p_username, ''), split_part(v_email, '@', 1))));
+  v_name := COALESCE(NULLIF(trim(p_name), ''), v_username);
+  v_role := COALESCE(NULLIF(trim(p_role), ''), 'property_manager');
+
+  SELECT * INTO v_user FROM public.users WHERE lower(email) = v_email LIMIT 1;
+
+  IF v_user IS NOT NULL THEN
+    UPDATE public.users SET
+      organization_id = p_org_id,
+      username = v_username,
+      name = v_name,
+      phone = COALESCE(NULLIF(trim(p_phone), ''), phone),
+      role = v_role,
+      status = COALESCE(NULLIF(trim(p_status), ''), 'Active')
+    WHERE id = v_user.id
+    RETURNING * INTO v_user;
+    RETURN v_user;
+  END IF;
+
+  IF p_auth_user_id IS NOT NULL THEN
+    INSERT INTO public.users (
+      id, organization_id, username, name, email, phone, role, status
+    ) VALUES (
+      p_auth_user_id, p_org_id, v_username, v_name, v_email,
+      NULLIF(trim(p_phone), ''), v_role,
+      COALESCE(NULLIF(trim(p_status), ''), 'Active')
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      organization_id = EXCLUDED.organization_id,
+      username = EXCLUDED.username,
+      name = EXCLUDED.name,
+      role = EXCLUDED.role,
+      status = EXCLUDED.status
+    RETURNING * INTO v_user;
+  ELSE
+    INSERT INTO public.users (
+      organization_id, username, name, email, phone, role, status
+    ) VALUES (
+      p_org_id, v_username, v_name, v_email,
+      NULLIF(trim(p_phone), ''), v_role,
+      COALESCE(NULLIF(trim(p_status), ''), 'Active')
+    )
+    RETURNING * INTO v_user;
+  END IF;
+
+  RETURN v_user;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.bootstrap_staff_user(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT)
+  TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.resolve_login(
   p_org_code TEXT,
   p_username TEXT
@@ -127,7 +203,6 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Match username on public.users for this org
   SELECT * INTO v_user
   FROM public.users
   WHERE organization_id = v_org.id
@@ -138,7 +213,6 @@ BEGIN
     )
   LIMIT 1;
 
-  -- Fallback: preferred_username or email local-part on the organisation itself
   IF v_user IS NULL THEN
     IF (
       lower(COALESCE(v_org.preferred_username, '')) = v_uname
@@ -167,7 +241,6 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.resolve_login(TEXT, TEXT) TO anon, authenticated;
 
--- RLS helpers for users insert (bootstrap uses SECURITY DEFINER anyway)
 DO $$ BEGIN
   DROP POLICY IF EXISTS users_insert_bootstrap ON users;
 EXCEPTION WHEN undefined_object THEN NULL;
