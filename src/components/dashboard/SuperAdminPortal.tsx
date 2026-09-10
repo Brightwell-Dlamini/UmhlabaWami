@@ -4,21 +4,15 @@ import {
   Layers,
   CheckCircle2,
   XCircle,
-  Building,
   Store,
-  Users,
-  Settings,
   History,
   Download,
-  RotateCcw,
-  Sparkles,
-  Sliders,
-  DollarSign,
   AlertCircle,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { auth } from '../../services/auth';
 import { approveOrganisation, rejectOrganisation } from '../../services/provisioning';
+import { getPlatformAnalytics } from '../../services/superAdminService';
 import { Organization, Shop } from '../../types';
 
 interface SuperAdminPortalProps {
@@ -26,14 +20,17 @@ interface SuperAdminPortalProps {
 }
 
 export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }) => {
-  const [activeTab, setActiveTab] = useState<'approvals' | 'organizations' | 'listings' | 'audit' | 'backup'>('approvals');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'approvals' | 'organizations' | 'listings' | 'audit' | 'backup'
+  >('overview');
   const [organizations, setOrganizations] = useState<Organization[]>(db.organizations);
   const [shops, setShops] = useState<Shop[]>(db.shops);
   const [actionNotice, setActionNotice] = useState('');
 
   useEffect(() => {
     if (!initialTab) return;
-    if (initialTab === 'super_approvals' || initialTab === 'approvals') setActiveTab('approvals');
+    if (initialTab === 'super_overview' || initialTab === 'overview') setActiveTab('overview');
+    else if (initialTab === 'super_approvals' || initialTab === 'approvals') setActiveTab('approvals');
     else if (initialTab === 'super_organizations' || initialTab === 'organizations') setActiveTab('organizations');
     else if (initialTab === 'super_listings' || initialTab === 'listings') setActiveTab('listings');
     else if (initialTab === 'audit_logs' || initialTab === 'audit') setActiveTab('audit');
@@ -53,7 +50,6 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
   }, []);
 
   const pendingOrgs = organizations.filter((o) => o.status === 'Pending Approval');
-  const activeOrgs = organizations.filter((o) => o.status === 'Active');
 
   const handleApprove = async (orgId: string) => {
     const org = organizations.find((o) => o.id === orgId);
@@ -85,7 +81,7 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
 
     const finalCode = result.organization?.organization_code || code;
     setActionNotice(
-      `"${org.company_name}" approved. Organisation code: ${finalCode}. Owner signs in with that code, their username, and the password set at registration.`
+      `"${org.company_name}" approved. Code: ${finalCode}. Set custom billing under Subscription Billing if needed.`
     );
     setCustomCode('');
     setCustomMonthlyFee('');
@@ -123,10 +119,6 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
     db.updateShop(shopId, { public_featured: !current });
   };
 
-  const handleStatusChange = (shopId: string, newStatus: string) => {
-    db.updateShop(shopId, { status: newStatus as Shop['status'] });
-  };
-
   const handleDownloadBackup = () => {
     const stateJson = db.exportStateJson();
     const blob = new Blob([stateJson], { type: 'application/json' });
@@ -141,11 +133,14 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
     setTimeout(() => setActionNotice(''), 3000);
   };
 
+  const a = getPlatformAnalytics();
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
         {(
           [
+            ['overview', 'Overview'],
             ['approvals', 'Approvals'],
             ['organizations', 'Organisations'],
             ['listings', 'Listings'],
@@ -165,7 +160,9 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
           >
             {label}
             {id === 'approvals' && pendingOrgs.length > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px]">{pendingOrgs.length}</span>
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px]">
+                {pendingOrgs.length}
+              </span>
             )}
           </button>
         ))}
@@ -178,14 +175,42 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
         </div>
       )}
 
+      {activeTab === 'overview' && (
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">Platform overview</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              ['Active orgs', a.active_organizations],
+              ['Pending approvals', a.pending_organizations],
+              ['Users', a.total_users],
+              ['Units', a.total_units],
+              ['Occupancy', `${a.occupancy_rate}%`],
+              ['Open tickets', a.open_tickets],
+              ['Platform MRR', `E${a.platform_mrr.toLocaleString()}`],
+              ['SLA compliance', `${a.sla_compliance_pct}%`],
+            ].map(([label, val]) => (
+              <div
+                key={String(label)}
+                className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+              >
+                <div className="text-[10px] uppercase text-slate-500 font-semibold">{label}</div>
+                <div className="text-lg font-extrabold text-slate-900 dark:text-white mt-1">{val}</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500">
+            Use <strong>Org Approvals</strong> to activate clients, <strong>Subscription Billing</strong> for custom fees,
+            and <strong>Global Analytics</strong> for the full picture.
+          </p>
+        </div>
+      )}
+
       {activeTab === 'approvals' && (
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Shield className="w-4 h-4 text-blue-600" /> Pending organisation applications
           </h3>
-          {pendingOrgs.length === 0 && (
-            <p className="text-xs text-slate-500">No pending applications.</p>
-          )}
+          {pendingOrgs.length === 0 && <p className="text-xs text-slate-500">No pending applications.</p>}
           {pendingOrgs.map((org) => (
             <div
               key={org.id}
@@ -194,14 +219,19 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div className="font-bold text-sm text-slate-900 dark:text-white">{org.company_name}</div>
-                  <div className="text-xs text-slate-500">{org.owner_name} · {org.email} · {org.phone}</div>
+                  <div className="text-xs text-slate-500">
+                    {org.owner_name} · {org.email} · {org.phone}
+                  </div>
                   <div className="text-[11px] text-slate-400 mt-1">{org.address}</div>
                   <div className="text-[11px] text-slate-500 mt-1">
                     Tier: {org.subscription_tier}
-                    {org.monthly_fee_estimate != null && ` · Est. fee E${Number(org.monthly_fee_estimate).toLocaleString()}`}
+                    {org.monthly_fee_estimate != null &&
+                      ` · Est. fee E${Number(org.monthly_fee_estimate).toLocaleString()}`}
                   </div>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Pending Approval</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                  Pending Approval
+                </span>
               </div>
 
               {selectedOrgId === org.id && (
@@ -216,11 +246,15 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Custom monthly fee (optional)</label>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase">
+                      Custom monthly fee (optional)
+                    </label>
                     <input
                       type="number"
                       value={customMonthlyFee}
-                      onChange={(e) => setCustomMonthlyFee(e.target.value === '' ? '' : Number(e.target.value))}
+                      onChange={(e) =>
+                        setCustomMonthlyFee(e.target.value === '' ? '' : Number(e.target.value))
+                      }
                       className="mt-1 w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
                     />
                   </div>
@@ -261,10 +295,16 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
             <Layers className="w-4 h-4" /> All organisations ({organizations.length})
           </h3>
           {organizations.map((org) => (
-            <div key={org.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex flex-wrap justify-between gap-2">
+            <div
+              key={org.id}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex flex-wrap justify-between gap-2"
+            >
               <div>
                 <div className="font-semibold text-slate-900 dark:text-white">{org.company_name}</div>
                 <div className="text-slate-500 font-mono">{org.organization_code}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">
+                  {org.subscription_tier} · Fee E{(org.monthly_fee_estimate ?? 0).toLocaleString()}
+                </div>
               </div>
               <span className="font-semibold">{org.status}</span>
             </div>
@@ -279,16 +319,27 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
           </h3>
           {shops.length === 0 && <p className="text-xs text-slate-500">No units yet.</p>}
           {shops.slice(0, 50).map((shop) => (
-            <div key={shop.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex flex-wrap items-center justify-between gap-2">
+            <div
+              key={shop.id}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex flex-wrap items-center justify-between gap-2"
+            >
               <div>
                 <div className="font-semibold">{shop.shop_number}</div>
                 <div className="text-slate-500">{shop.status}</div>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => handleTogglePublic(shop.id, !!shop.public_listing)} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePublic(shop.id, !!shop.public_listing)}
+                  className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800"
+                >
                   {shop.public_listing ? 'Public' : 'Private'}
                 </button>
-                <button type="button" onClick={() => handleToggleFeatured(shop.id, !!shop.public_featured)} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">
+                <button
+                  type="button"
+                  onClick={() => handleToggleFeatured(shop.id, !!shop.public_featured)}
+                  className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800"
+                >
                   {shop.public_featured ? 'Featured' : 'Feature'}
                 </button>
               </div>
