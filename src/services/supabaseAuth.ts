@@ -1,11 +1,6 @@
 /**
- * Supabase-backed authentication (Phase 2).
- * Preserves Organisation Code + Username login UX while using real Auth sessions.
- *
- * Login strategy:
- * 1. Call resolve_login RPC (SECURITY DEFINER) — works before session exists
- * 2. Sign in with returned email + password via Supabase Auth
- * 3. Load full profile from public.users under authenticated RLS
+ * Supabase-backed authentication.
+ * Organisation Code + Username → resolve_login RPC → Auth password sign-in.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { User, Organization, UserRole } from '../types';
@@ -50,7 +45,8 @@ function mapDbOrg(row: Record<string, unknown>): Organization {
     tenant_limit: Number(row.tenant_limit),
     user_limit: Number(row.user_limit),
     storage_limit: Number(row.storage_limit),
-    monthly_fee_estimate: row.monthly_fee_estimate != null ? Number(row.monthly_fee_estimate) : undefined,
+    monthly_fee_estimate:
+      row.monthly_fee_estimate != null ? Number(row.monthly_fee_estimate) : undefined,
     created_at: String(row.created_at || new Date().toISOString()),
     approved_at: row.approved_at ? String(row.approved_at) : undefined,
     approved_by: row.approved_by ? String(row.approved_by) : undefined,
@@ -60,12 +56,16 @@ function mapDbOrg(row: Record<string, unknown>): Organization {
 
 async function loadUserByEmail(email: string): Promise<User | null> {
   if (!supabase) return null;
-  const { data: rows } = await supabase.from('users').select('*').eq('email', email).limit(1);
+  const { data: rows } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email.toLowerCase())
+    .limit(1);
   if (!rows?.length) return null;
   return mapDbUser(rows[0] as Record<string, unknown>);
 }
 
-async function loadOrgById(orgId: string | undefined): Promise<Organization | null> {
+async function loadOrgById(orgId?: string): Promise<Organization | null> {
   if (!supabase || !orgId) return null;
   const { data: rows } = await supabase.from('organizations').select('*').eq('id', orgId).limit(1);
   if (!rows?.length) return null;
@@ -84,7 +84,6 @@ export async function supabaseLogin(
   const trimmedOrg = organizationCode.trim().toUpperCase();
   const trimmedUser = username.trim().toLowerCase();
 
-  // 1) Resolve email via SECURITY DEFINER RPC (works for anon)
   const { data: resolved, error: rpcErr } = await supabase.rpc('resolve_login', {
     p_org_code: trimmedOrg,
     p_username: trimmedUser,
@@ -93,7 +92,7 @@ export async function supabaseLogin(
   if (rpcErr) {
     return {
       success: false,
-      error: `Login resolver failed: ${rpcErr.message}. Did you run public/supabase-auth-bridge.sql?`,
+      error: `Login resolver failed: ${rpcErr.message}. Run public/fix-resolve-login.sql in the Supabase SQL Editor, then try again.`,
     };
   }
 
@@ -123,7 +122,6 @@ export async function supabaseLogin(
     return { success: false, error: `User account is currently ${row.user_status}.` };
   }
 
-  // 2) Supabase Auth password sign-in
   const { error: signInErr } = await supabase.auth.signInWithPassword({
     email: String(row.email),
     password,
@@ -134,11 +132,10 @@ export async function supabaseLogin(
       success: false,
       error:
         signInErr.message ||
-        'Invalid password. Create this user under Authentication → Users with the same email.',
+        'Invalid password. Check Authentication → Users for this email, or reset the password.',
     };
   }
 
-  // 3) Load full profile under authenticated RLS
   const appUser = await loadUserByEmail(String(row.email));
   if (!appUser) {
     return {
@@ -159,11 +156,9 @@ export async function supabaseLogout(): Promise<void> {
 }
 
 export async function getSessionUser(): Promise<User | null> {
-  if (!supabase) return null;
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData.session;
-  if (!session?.user?.email) return null;
-
-  return loadUserByEmail(session.user.email);
+  if (!supabase || !isSupabaseConfigured) return null;
+  const { data } = await supabase.auth.getSession();
+  const email = data.session?.user?.email;
+  if (!email) return null;
+  return loadUserByEmail(email);
 }

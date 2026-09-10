@@ -1,14 +1,13 @@
 -- ============================================================================
--- CRITICAL: Fix login resolver (run this FIRST — alone is enough to restore login)
+-- CRITICAL: Fix login resolver — run THIS file alone in Supabase SQL Editor
+-- Restores Super Admin and all org logins.
 -- ============================================================================
 
--- Drop every known signature (TEXT / varchar). Must succeed before CREATE.
 DROP FUNCTION IF EXISTS public.resolve_login(TEXT, TEXT) CASCADE;
 DROP FUNCTION IF EXISTS public.resolve_login(text, text) CASCADE;
 DROP FUNCTION IF EXISTS public.resolve_login(VARCHAR, VARCHAR) CASCADE;
 DROP FUNCTION IF EXISTS public.resolve_login(character varying, character varying) CASCADE;
 
--- Recreate with RETURN QUERY (no OUT-parameter name clashes)
 CREATE FUNCTION public.resolve_login(
   p_org_code TEXT,
   p_username TEXT
@@ -28,29 +27,7 @@ DECLARE
   v_code TEXT := upper(trim(COALESCE(p_org_code, '')));
   v_uname TEXT := lower(trim(COALESCE(p_username, '')));
 BEGIN
-  -- 1) Super Admin: special codes or users with role super_admin and no org filter
-  IF v_code IN ('SUPER', 'PLATFORM', 'SUPERADMIN', 'ADMIN', 'SA', 'UW-SUPER') THEN
-    RETURN QUERY
-    SELECT
-      u.email::TEXT,
-      COALESCE(u.status, 'Active')::TEXT,
-      'Active'::TEXT,
-      'Umhlaba Wami Platform'::TEXT,
-      u.organization_id
-    FROM public.users AS u
-    WHERE u.role = 'super_admin'
-      AND (
-        lower(u.username) = v_uname
-        OR lower(u.email) = v_uname
-        OR lower(split_part(u.email, '@', 1)) = v_uname
-      )
-    LIMIT 1;
-    IF FOUND THEN
-      RETURN;
-    END IF;
-  END IF;
-
-  -- 2) Any user whose organisation_code matches (including super_admin tied to an org code)
+  -- A) Match org code + username on public.users (normal staff / org admin)
   RETURN QUERY
   SELECT
     u.email::TEXT,
@@ -59,11 +36,8 @@ BEGIN
     COALESCE(o.company_name, 'Organisation')::TEXT,
     u.organization_id
   FROM public.users AS u
-  LEFT JOIN public.organizations AS o ON o.id = u.organization_id
-  WHERE (
-      upper(COALESCE(o.organization_code, '')) = v_code
-      OR (u.role = 'super_admin' AND v_code IN ('SUPER', 'PLATFORM', 'SUPERADMIN', 'ADMIN', 'SA', 'UW-SUPER'))
-    )
+  INNER JOIN public.organizations AS o ON o.id = u.organization_id
+  WHERE upper(o.organization_code) = v_code
     AND (
       lower(u.username) = v_uname
       OR lower(u.email) = v_uname
@@ -71,11 +45,28 @@ BEGIN
     )
   LIMIT 1;
 
-  IF FOUND THEN
-    RETURN;
-  END IF;
+  IF FOUND THEN RETURN; END IF;
 
-  -- 3) Fallback: org preferred_username / owner email (before public.users existed)
+  -- B) Super Admin by username (any org code — keeps previous SUPER / blank / custom working)
+  RETURN QUERY
+  SELECT
+    u.email::TEXT,
+    COALESCE(u.status, 'Active')::TEXT,
+    'Active'::TEXT,
+    'Umhlaba Wami Platform'::TEXT,
+    u.organization_id
+  FROM public.users AS u
+  WHERE u.role = 'super_admin'
+    AND (
+      lower(u.username) = v_uname
+      OR lower(u.email) = v_uname
+      OR lower(split_part(u.email, '@', 1)) = v_uname
+    )
+  LIMIT 1;
+
+  IF FOUND THEN RETURN; END IF;
+
+  -- C) Org row fallback (preferred_username / owner email before public.users existed)
   RETURN QUERY
   SELECT
     o.email::TEXT,
@@ -96,6 +87,3 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.resolve_login(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.resolve_login(TEXT, TEXT) TO service_role;
-
--- Quick self-check (optional): should not error
--- SELECT * FROM public.resolve_login('SUPER', 'your_super_username');
