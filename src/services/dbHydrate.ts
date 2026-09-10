@@ -92,3 +92,6 @@ export async function tryHydratePublicListings(): Promise<boolean> {
   tryHydrateFromSupabase;
 (db as unknown as { tryHydratePublicListings: typeof tryHydratePublicListings }).tryHydratePublicListings =
   tryHydratePublicListings;
+
+// Boot: load public marketplace without auth
+void tryHydratePublicListings();
