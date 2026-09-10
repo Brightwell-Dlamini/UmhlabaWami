@@ -57,7 +57,10 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
 
     const code =
       customCode.trim() ||
-      `${(org.company_name || 'ORG').slice(0, 3).toUpperCase()}-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}`;
+      `${(org.company_name || 'ORG').slice(0, 3).toUpperCase()}-${new Date()
+        .toISOString()
+        .slice(2, 10)
+        .replace(/-/g, '')}`;
 
     const admin = auth.getCurrentUser();
     setActionNotice('Approving organisation…');
@@ -81,7 +84,7 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
 
     const finalCode = result.organization?.organization_code || code;
     setActionNotice(
-      `"${org.company_name}" approved. Code: ${finalCode}. Set custom billing under Subscription Billing if needed.`
+      `"${org.company_name}" approved. Code: ${finalCode}. Owner signs in with code + username + password from registration.`
     );
     setCustomCode('');
     setCustomMonthlyFee('');
@@ -198,10 +201,6 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
               </div>
             ))}
           </div>
-          <p className="text-xs text-slate-500">
-            Use <strong>Org Approvals</strong> to activate clients, <strong>Subscription Billing</strong> for custom fees,
-            and <strong>Global Analytics</strong> for the full picture.
-          </p>
         </div>
       )}
 
@@ -246,9 +245,7 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase">
-                      Custom monthly fee (optional)
-                    </label>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Custom monthly fee</label>
                     <input
                       type="number"
                       value={customMonthlyFee}
@@ -279,7 +276,7 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
                 <button
                   type="button"
                   onClick={() => void handleReject(org.id)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 flex items-center gap-1"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-red-50 text-red-700 flex items-center gap-1"
                 >
                   <XCircle className="w-3.5 h-3.5" /> Reject
                 </button>
@@ -290,25 +287,81 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
       )}
 
       {activeTab === 'organizations' && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Layers className="w-4 h-4" /> All organisations ({organizations.length})
-          </h3>
-          {organizations.map((org) => (
-            <div
-              key={org.id}
-              className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex flex-wrap justify-between gap-2"
-            >
-              <div>
-                <div className="font-semibold text-slate-900 dark:text-white">{org.company_name}</div>
-                <div className="text-slate-500 font-mono">{org.organization_code}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  {org.subscription_tier} · Fee E{(org.monthly_fee_estimate ?? 0).toLocaleString()}
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Layers className="w-4 h-4 text-blue-600" /> Organisations
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {organizations.length} total · {organizations.filter((o) => o.status === 'Active').length} active ·{' '}
+              {pendingOrgs.length} pending
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {organizations.map((org) => {
+              const statusColor =
+                org.status === 'Active'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : org.status === 'Pending Approval'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : org.status === 'Rejected'
+                  ? 'bg-red-50 text-red-700 border-red-200'
+                  : 'bg-slate-50 text-slate-600 border-slate-200';
+              return (
+                <div
+                  key={org.id}
+                  className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800/80 shadow-sm hover:shadow-md hover:border-blue-200 transition"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        {org.company_name}
+                      </div>
+                      <div className="mt-1 inline-flex text-[11px] font-mono text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-lg">
+                        {org.organization_code}
+                      </div>
+                    </div>
+                    <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                      {org.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60">
+                      <div className="text-slate-400 text-[9px] uppercase tracking-wide">Owner</div>
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">{org.owner_name}</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60">
+                      <div className="text-slate-400 text-[9px] uppercase tracking-wide">Tier</div>
+                      <div className="font-semibold text-slate-800 dark:text-slate-200">{org.subscription_tier}</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60">
+                      <div className="text-slate-400 text-[9px] uppercase tracking-wide">Monthly fee</div>
+                      <div className="font-bold text-blue-600">E{(org.monthly_fee_estimate ?? 0).toLocaleString()}</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60">
+                      <div className="text-slate-400 text-[9px] uppercase tracking-wide">Contact</div>
+                      <div className="font-medium text-slate-700 dark:text-slate-300 truncate">{org.email}</div>
+                    </div>
+                  </div>
+
+                  {org.approved_at && (
+                    <div className="mt-2 text-[10px] text-slate-400">
+                      Approved {new Date(org.approved_at).toLocaleDateString()}
+                      {org.approved_by ? ` · ${org.approved_by}` : ''}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <span className="font-semibold">{org.status}</span>
+              );
+            })}
+          </div>
+
+          {organizations.length === 0 && (
+            <div className="p-10 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-500">No organisations yet. Approvals will appear here.</p>
             </div>
-          ))}
+          )}
         </div>
       )}
 
