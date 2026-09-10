@@ -11,7 +11,11 @@ import {
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { auth } from '../../services/auth';
-import { approveOrganisation, rejectOrganisation } from '../../services/provisioning';
+import {
+  approveOrganisation,
+  rejectOrganisation,
+  provisionOrgAdminLogin,
+} from '../../services/provisioning';
 import { getPlatformAnalytics } from '../../services/superAdminService';
 import { Organization, Shop } from '../../types';
 
@@ -40,6 +44,10 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
   const [customCode, setCustomCode] = useState('');
   const [customMonthlyFee, setCustomMonthlyFee] = useState<number | ''>('');
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [provisionOrgId, setProvisionOrgId] = useState<string | null>(null);
+  const [provisionPassword, setProvisionPassword] = useState('');
+  const [provisionUsername, setProvisionUsername] = useState('');
+  const [provisioning, setProvisioning] = useState(false);
 
   useEffect(() => {
     const unsub = db.subscribe(() => {
@@ -84,7 +92,7 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
 
     const finalCode = result.organization?.organization_code || code;
     setActionNotice(
-      `"${org.company_name}" approved. Code: ${finalCode}. Owner signs in with code + username + password from registration.`
+      `"${org.company_name}" approved. Code: ${finalCode}. If login fails, use Provision admin login on the Organisations tab.`
     );
     setCustomCode('');
     setCustomMonthlyFee('');
@@ -112,6 +120,33 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
     }
     setActionNotice(`Organization "${org.company_name}" marked as Rejected.`);
     setTimeout(() => setActionNotice(''), 3000);
+  };
+
+  const handleProvisionLogin = async (orgId: string) => {
+    if (!provisionPassword || provisionPassword.length < 8) {
+      setActionNotice('Password must be at least 8 characters.');
+      return;
+    }
+    setProvisioning(true);
+    setActionNotice('Creating login account…');
+    const result = await provisionOrgAdminLogin({
+      orgId,
+      password: provisionPassword,
+      username: provisionUsername || undefined,
+    });
+    setProvisioning(false);
+    if (!result.success) {
+      setActionNotice(result.error || 'Could not provision login.');
+      setTimeout(() => setActionNotice(''), 10000);
+      return;
+    }
+    setProvisionOrgId(null);
+    setProvisionPassword('');
+    setProvisionUsername('');
+    setActionNotice(
+      `Login ready. Username: ${result.username} · Email: ${result.email}. Sign in with org code + username + the password you set.`
+    );
+    setTimeout(() => setActionNotice(''), 15000);
   };
 
   const handleTogglePublic = (shopId: string, current: boolean) => {
@@ -222,17 +257,34 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
                     {org.owner_name} · {org.email} · {org.phone}
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1">{org.address}</div>
-                  <div className="text-[11px] text-slate-500 mt-1">
-                    Tier: {org.subscription_tier}
-                    {org.monthly_fee_estimate != null &&
-                      ` · Est. fee E${Number(org.monthly_fee_estimate).toLocaleString()}`}
-                  </div>
                 </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
                   Pending Approval
                 </span>
               </div>
-
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrgId(selectedOrgId === org.id ? null : org.id)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700"
+                >
+                  {selectedOrgId === org.id ? 'Hide options' : 'Set code / fee'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleApprove(org.id)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white flex items-center gap-1"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleReject(org.id)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-red-50 text-red-700 flex items-center gap-1"
+                >
+                  <XCircle className="w-3.5 h-3.5" /> Reject
+                </button>
+              </div>
               {selectedOrgId === org.id && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl">
                   <div>
@@ -257,30 +309,6 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
                   </div>
                 </div>
               )}
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedOrgId(selectedOrgId === org.id ? null : org.id)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700"
-                >
-                  {selectedOrgId === org.id ? 'Hide options' : 'Set code / fee'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleApprove(org.id)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white flex items-center gap-1"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleReject(org.id)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-red-50 text-red-700 flex items-center gap-1"
-                >
-                  <XCircle className="w-3.5 h-3.5" /> Reject
-                </button>
-              </div>
             </div>
           ))}
         </div>
@@ -352,6 +380,54 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
                       {org.approved_by ? ` · ${org.approved_by}` : ''}
                     </div>
                   )}
+
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                    {provisionOrgId === org.id ? (
+                      <div className="space-y-2">
+                        <p className="text-[10px] text-slate-500">
+                          Creates Authentication + public.users so the owner can sign in with org code + username + password.
+                        </p>
+                        <input
+                          value={provisionUsername}
+                          onChange={(e) => setProvisionUsername(e.target.value)}
+                          placeholder="Username (optional)"
+                          className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                        />
+                        <input
+                          type="password"
+                          value={provisionPassword}
+                          onChange={(e) => setProvisionPassword(e.target.value)}
+                          placeholder="Portal password (min 8 characters)"
+                          className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={provisioning}
+                            onClick={() => void handleProvisionLogin(org.id)}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white"
+                          >
+                            {provisioning ? 'Saving…' : 'Create login'}
+                          </button>
+                          <button type="button" onClick={() => setProvisionOrgId(null)} className="px-3 py-1.5 text-xs rounded-lg border">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProvisionOrgId(org.id);
+                          setProvisionUsername('');
+                          setProvisionPassword('');
+                        }}
+                        className="text-[11px] font-semibold text-blue-600 hover:underline"
+                      >
+                        Provision / reset admin login
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -359,7 +435,7 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
 
           {organizations.length === 0 && (
             <div className="p-10 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
-              <p className="text-sm text-slate-500">No organisations yet. Approvals will appear here.</p>
+              <p className="text-sm text-slate-500">No organisations yet.</p>
             </div>
           )}
         </div>
@@ -381,18 +457,10 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
                 <div className="text-slate-500">{shop.status}</div>
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleTogglePublic(shop.id, !!shop.public_listing)}
-                  className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800"
-                >
+                <button type="button" onClick={() => handleTogglePublic(shop.id, !!shop.public_listing)} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">
                   {shop.public_listing ? 'Public' : 'Private'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleFeatured(shop.id, !!shop.public_featured)}
-                  className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800"
-                >
+                <button type="button" onClick={() => handleToggleFeatured(shop.id, !!shop.public_featured)} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">
                   {shop.public_featured ? 'Featured' : 'Feature'}
                 </button>
               </div>
@@ -417,14 +485,9 @@ export const SuperAdminPortal: React.FC<SuperAdminPortalProps> = ({ initialTab }
 
       {activeTab === 'backup' && (
         <div className="space-y-3">
-          <button
-            type="button"
-            onClick={handleDownloadBackup}
-            className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl flex items-center gap-2"
-          >
+          <button type="button" onClick={handleDownloadBackup} className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl flex items-center gap-2">
             <Download className="w-4 h-4" /> Download backup JSON
           </button>
-          <p className="text-xs text-slate-500">Exports the current client cache. Source of truth remains Supabase.</p>
         </div>
       )}
     </div>
