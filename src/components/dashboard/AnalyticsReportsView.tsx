@@ -1,200 +1,172 @@
 import React, { useState, useEffect } from 'react';
 import {
   BarChart3,
-  TrendingUp,
-  Clock,
-  ShieldCheck,
   Building,
+  Users,
+  Ticket,
   Download,
   CheckCircle2,
   AlertTriangle,
-  ArrowUpRight,
-  FileSpreadsheet,
+  Layers,
+  Store,
+  DollarSign,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { auth } from '../../services/auth';
+import { getPlatformAnalytics } from '../../services/superAdminService';
+
+function fmt(n: number) {
+  return `E${n.toLocaleString()}`;
+}
 
 export const AnalyticsReportsView: React.FC = () => {
   const [downloadNotice, setDownloadNotice] = useState('');
   const [, setTick] = useState(0);
+  const user = auth.getCurrentUser();
+  const isSuper = user?.role === 'super_admin';
 
   useEffect(() => {
-    const unsub = db.subscribe(() => {
-      setTick((prev) => prev + 1);
-    });
+    const unsub = db.subscribe(() => setTick((p) => p + 1));
     return () => unsub();
   }, []);
 
-  const handleExportReport = () => {
-    const csvContent =
-      'Metric,Value,Target,Status\n' +
-      'SLA_Emergency_Compliance,96.4%,95.0%,Exceeding\n' +
-      'Average_Resolution_Time_Hours,2.4,4.0,Optimal\n' +
-      'Commercial_Occupancy_Rate,92.8%,90.0%,Healthy\n' +
-      'Rent_Collection_Efficiency,88.5%,85.0%,Compliant\n' +
-      'Open_Tickets_Total,2,5,Normal\n';
+  const a = getPlatformAnalytics();
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const handleExportReport = () => {
+    const csv =
+      'Metric,Value\n' +
+      `Total_Organisations,${a.total_organizations}\n` +
+      `Active_Organisations,${a.active_organizations}\n` +
+      `Pending_Approvals,${a.pending_organizations}\n` +
+      `Platform_Users,${a.total_users}\n` +
+      `Properties,${a.total_properties}\n` +
+      `Units,${a.total_units}\n` +
+      `Occupied_Units,${a.occupied_units}\n` +
+      `Available_Units,${a.available_units}\n` +
+      `Occupancy_Rate_Pct,${a.occupancy_rate}\n` +
+      `Tenants,${a.total_tenants}\n` +
+      `Open_Tickets,${a.open_tickets}\n` +
+      `Overdue_Tickets,${a.overdue_tickets}\n` +
+      `SLA_Compliance_Pct,${a.sla_compliance_pct}\n` +
+      `Platform_MRR,${a.platform_mrr}\n` +
+      `Portfolio_Rent_Roll,${a.portfolio_rent_roll}\n`;
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Umhlaba_Wami_SLA_Executive_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.href = url;
+    link.download = `Umhlaba_Wami_Platform_Analytics_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    setDownloadNotice('Executive KPI & SLA performance report downloaded successfully.');
+    setDownloadNotice('Live platform analytics exported.');
     setTimeout(() => setDownloadNotice(''), 3000);
   };
 
+  const cards = [
+    { label: 'Active organisations', value: String(a.active_organizations), sub: `${a.pending_organizations} pending`, icon: Layers, color: 'text-blue-600' },
+    { label: 'Platform users', value: String(a.total_users), sub: `${a.total_tenants} tenants`, icon: Users, color: 'text-indigo-600' },
+    { label: 'Units', value: String(a.total_units), sub: `${a.occupancy_rate}% occupancy`, icon: Store, color: 'text-emerald-600' },
+    { label: 'Open tickets', value: String(a.open_tickets), sub: `${a.overdue_tickets} overdue / at risk`, icon: Ticket, color: 'text-amber-600' },
+    { label: 'SLA compliance', value: `${a.sla_compliance_pct}%`, sub: `${a.resolved_tickets} resolved`, icon: CheckCircle2, color: 'text-teal-600' },
+    { label: 'Platform MRR', value: fmt(a.platform_mrr), sub: `Rent roll ${fmt(a.portfolio_rent_roll)}`, icon: DollarSign, color: 'text-blue-700' },
+  ];
+
   return (
     <div className="space-y-6 pb-12">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-blue-600" />
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-              SLA Analytics & Executive Reports
+              {isSuper ? 'Global Platform Analytics' : 'SLA Analytics & Reports'}
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time facilities performance metrics, vendor benchmarks, and occupancy trends
+            Live metrics from organisations, units, tickets, and billing — not sample data.
           </p>
         </div>
-
         <button
+          type="button"
           onClick={handleExportReport}
-          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-2"
+          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-2"
         >
-          <Download className="w-4 h-4" />
-          <span>Export KPI Report (CSV)</span>
+          <Download className="w-4 h-4" /> Export CSV
         </button>
       </div>
 
       {downloadNotice && (
-        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{downloadNotice}</span>
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" /> {downloadNotice}
         </div>
       )}
 
-      {/* Top Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">Emergency SLA Rate</span>
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {cards.map((c) => (
+          <div
+            key={c.label}
+            className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{c.label}</span>
+              <c.icon className={`w-4 h-4 ${c.color}`} />
+            </div>
+            <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{c.value}</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">{c.sub}</div>
           </div>
-          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">96.4%</div>
-          <div className="text-[11px] text-slate-400">Avg 11.2 min response (Target: 15m)</div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">Avg Resolution Time</span>
-            <Clock className="w-4 h-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">2.4 hrs</div>
-          <div className="text-[11px] text-slate-400">Down 28% from last month</div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">Commercial Occupancy</span>
-            <Building className="w-4 h-4 text-indigo-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white">92.8%</div>
-          <div className="text-[11px] text-slate-400">18 units active • 2 available</div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">On-Time Collections</span>
-            <TrendingUp className="w-4 h-4 text-teal-500" />
-          </div>
-          <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">88.5%</div>
-          <div className="text-[11px] text-slate-400">E 216,040 collected this cycle</div>
-        </div>
+        ))}
       </div>
 
-      {/* Category Breakdown & Performance Bars */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Ticket Volume by Category */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-            Maintenance Category Breakdown
-          </h2>
-
-          <div className="space-y-3 text-xs">
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-slate-700 dark:text-slate-300">Air Conditioning & HVAC</span>
-                <span className="text-slate-900 dark:text-white">35% (7 tickets)</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+            <Building className="w-4 h-4 text-blue-600" /> Orgs by subscription tier
+          </h3>
+          <div className="space-y-2 text-xs">
+            {(['Starter', 'Professional', 'Enterprise'] as const).map((t) => (
+              <div key={t} className="flex items-center justify-between">
+                <span>{t}</span>
+                <span className="font-bold">{a.orgs_by_tier[t]}</span>
               </div>
-              <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                <div className="h-full bg-blue-600 rounded-full" style={{ width: '35%' }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-slate-700 dark:text-slate-300">Plumbing & Water Supply</span>
-                <span className="text-slate-900 dark:text-white">28% (5 tickets)</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                <div className="h-full bg-teal-500 rounded-full" style={{ width: '28%' }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-slate-700 dark:text-slate-300">Electrical & Power</span>
-                <span className="text-slate-900 dark:text-white">22% (4 tickets)</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full" style={{ width: '22%' }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-slate-700 dark:text-slate-300">Structural, Doors & Signage</span>
-                <span className="text-slate-900 dark:text-white">15% (3 tickets)</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full" style={{ width: '15%' }} />
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Contractor Performance Index */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-            Contractor SLA Benchmark Index
-          </h2>
-
-          <div className="space-y-3">
-            {db.vendors.slice(0, 4).map((v) => (
-              <div
-                key={v.id}
-                className="p-3 rounded-xl bg-slate-50 dark:bg-slate-700/40 flex items-center justify-between text-xs"
-              >
-                <div>
-                  <div className="font-bold text-slate-900 dark:text-white">{v.company_name}</div>
-                  <div className="text-[11px] text-slate-500">{v.service_category}</div>
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-blue-600" /> Recent organisations
+          </h3>
+          <div className="space-y-2 text-xs">
+            {a.recent_orgs.length === 0 && <p className="text-slate-500">No organisations yet.</p>}
+            {a.recent_orgs.map((o) => (
+              <div key={o.id} className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-semibold truncate">{o.company_name}</div>
+                  <div className="text-[10px] text-slate-400 font-mono">{o.organization_code}</div>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold text-emerald-600 dark:text-emerald-400">
-                    ★ {v.performance_rating} / 5.0
-                  </div>
-                  <div className="text-[10px] text-slate-400">Response SLA: 100%</div>
-                </div>
+                <span
+                  className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    o.status === 'Active'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : o.status === 'Pending Approval'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {o.status}
+                </span>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {a.overdue_tickets > 0 && (
+        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          {a.overdue_tickets} ticket(s) are overdue or at risk across the platform.
+        </div>
+      )}
     </div>
   );
 };
