@@ -30,11 +30,9 @@ import {
   FileBarChart,
   Brain,
   Sparkles,
-  KeyRound,
   Bell,
   Palette,
   HeartPulse,
-  Rocket,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -51,6 +49,15 @@ interface SidebarProps {
   onOpenCreateTicket?: () => void;
 }
 
+type NavItem = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  highlight?: boolean;
+  badgeCount?: string | number;
+  section?: string;
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   role = 'tenant',
   activeTab,
@@ -60,186 +67,193 @@ export const Sidebar: React.FC<SidebarProps> = ({
   organizationName,
   orgCode,
 }) => {
-  const getNavItems = () => {
+  const getNavItems = (): NavItem[] => {
     switch (role) {
       case 'tenant':
         return [
-          { id: 'tenant_overview', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'tenant_tickets', label: 'My Tickets', icon: Ticket },
-          { id: 'report_issue', label: 'Report Issue', icon: PlusCircle, highlight: true },
-          { id: 'messages', label: 'Messages', icon: MessageSquare },
-          { id: 'tenant_documents', label: 'Documents', icon: FileText },
-          { id: 'tenant_lease', label: 'Lease & SLA', icon: FileBadge },
-          { id: 'announcements', label: 'Announcements', icon: Megaphone },
-          { id: 'notifications', label: 'Notifications', icon: Bell },
+          { id: 'tenant_overview', label: 'Dashboard', icon: LayoutDashboard, section: 'Home' },
+          { id: 'tenant_tickets', label: 'My Tickets', icon: Ticket, section: 'Operations' },
+          { id: 'report_issue', label: 'Report Issue', icon: PlusCircle, highlight: true, section: 'Operations' },
+          { id: 'messages', label: 'Messages', icon: MessageSquare, section: 'Operations' },
+          { id: 'tenant_documents', label: 'Documents', icon: FileText, section: 'Account' },
+          { id: 'tenant_lease', label: 'Lease & SLA', icon: FileBadge, section: 'Account' },
+          { id: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Account' },
+          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Account' },
         ];
       case 'property_manager':
         return [
-          { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
-          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket },
-          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
-          { id: 'ai_assist', label: 'AI Assist', icon: Sparkles },
-          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban },
-          { id: 'properties', label: 'Properties & Centers', icon: Building },
-          { id: 'manager_tickets', label: 'Tickets & SLAs', icon: Ticket },
-          { id: 'maintenance_ops', label: 'Maintenance Ops', icon: Wrench },
-          { id: 'preventive', label: 'Preventive PM', icon: Calendar },
-          { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
-          { id: 'tenants_list', label: 'Tenants', icon: Users },
-          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign },
-          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
-          { id: 'notifications', label: 'Notifications', icon: Bell },
-          { id: 'staff_schedule', label: 'Roster & Shifts', icon: Calendar },
-          { id: 'vendors', label: 'Vendors', icon: Truck },
-          { id: 'announcements', label: 'Announcements', icon: Megaphone },
-          { id: 'messages', label: 'Messages', icon: MessageSquare },
+          { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true, section: 'Home' },
+          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain, section: 'Home' },
+          { id: 'ai_assist', label: 'AI Assist', icon: Sparkles, section: 'Home' },
+          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban, section: 'Portfolio' },
+          { id: 'properties', label: 'Properties & Centers', icon: Building, section: 'Portfolio' },
+          { id: 'tenants_list', label: 'Tenants', icon: Users, section: 'Portfolio' },
+          { id: 'manager_tickets', label: 'Tickets & SLAs', icon: Ticket, section: 'Operations' },
+          { id: 'maintenance_ops', label: 'Maintenance Ops', icon: Wrench, section: 'Operations' },
+          { id: 'preventive', label: 'Preventive PM', icon: Calendar, section: 'Operations' },
+          { id: 'sla_config', label: 'SLA Matrix', icon: Shield, section: 'Operations' },
+          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, section: 'Finance' },
+          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart, section: 'Finance' },
+          { id: 'staff_schedule', label: 'Roster & Shifts', icon: Calendar, section: 'Team' },
+          { id: 'vendors', label: 'Vendors', icon: Truck, section: 'Team' },
+          { id: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Team' },
+          { id: 'messages', label: 'Messages', icon: MessageSquare, section: 'Team' },
+          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Team' },
         ];
       case 'maintenance':
         return [
-          { id: 'maintenance_jobs', label: 'My Jobs', icon: Wrench },
-          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket },
-          { id: 'staff_schedule', label: 'My Schedule', icon: Calendar },
-          { id: 'preventive', label: 'Preventive PM', icon: CheckCircle2 },
-          { id: 'notifications', label: 'Notifications', icon: Bell },
-          { id: 'messages', label: 'Operations Chat', icon: MessageSquare },
+          { id: 'maintenance_jobs', label: 'My Jobs', icon: Wrench, section: 'Work' },
+          { id: 'staff_schedule', label: 'My Schedule', icon: Calendar, section: 'Work' },
+          { id: 'preventive', label: 'Preventive PM', icon: CheckCircle2, section: 'Work' },
+          { id: 'messages', label: 'Operations Chat', icon: MessageSquare, section: 'Work' },
+          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Work' },
         ];
       case 'finance':
         return [
-          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, highlight: true },
-          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket },
-          { id: 'deposits', label: 'Deposit Ledger', icon: Wallet },
-          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
-          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
-          { id: 'notifications', label: 'Notifications', icon: Bell },
-          { id: 'expenses_ledger', label: 'Expenses Ledger', icon: Receipt },
-          { id: 'transactions', label: 'Transactions', icon: ArrowDownUp },
-          { id: 'financial_requests', label: 'Petty Cash & Requests', icon: CreditCard },
-          { id: 'finance_documents', label: 'Documents & Sage', icon: FileText },
-          { id: 'analytics_reports', label: 'Financial Reports', icon: BarChart3 },
+          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, highlight: true, section: 'Finance' },
+          { id: 'deposits', label: 'Deposit Ledger', icon: Wallet, section: 'Finance' },
+          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart, section: 'Finance' },
+          { id: 'expenses_ledger', label: 'Expenses Ledger', icon: Receipt, section: 'Finance' },
+          { id: 'transactions', label: 'Transactions', icon: ArrowDownUp, section: 'Finance' },
+          { id: 'financial_requests', label: 'Petty Cash & Requests', icon: CreditCard, section: 'Finance' },
+          { id: 'finance_documents', label: 'Documents & Sage', icon: FileText, section: 'Finance' },
+          { id: 'analytics_reports', label: 'Financial Reports', icon: BarChart3, section: 'Finance' },
+          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain, section: 'Insights' },
+          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Insights' },
         ];
       case 'admin':
         return [
-          { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true },
-          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket },
-          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain },
-          { id: 'ai_assist', label: 'AI Assist', icon: Sparkles },
-          { id: 'permissions', label: 'Permissions', icon: KeyRound },
-          { id: 'compliance_audit', label: 'Compliance Audit', icon: History },
-          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban },
-          { id: 'properties', label: 'Properties & Units', icon: Building },
-          { id: 'tenants_list', label: 'Tenants Directory', icon: Users },
-          { id: 'org_users', label: 'Staff & Roles', icon: Users },
-          { id: 'manager_tickets', label: 'All Tickets', icon: Ticket },
-          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign },
-          { id: 'deposits', label: 'Deposits', icon: Wallet },
-          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart },
-          { id: 'notifications', label: 'Notifications', icon: Bell },
-          { id: 'white_label', label: 'White-label', icon: Palette },
-          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse },
-          { id: 'preventive', label: 'Preventive PM', icon: Calendar },
-          { id: 'sla_config', label: 'SLA Matrix', icon: Shield },
-          { id: 'staff_schedule', label: 'Staff Rostering', icon: Calendar },
-          { id: 'vendors', label: 'Vendors', icon: Truck },
-          { id: 'announcements', label: 'Announcements', icon: Megaphone },
-          { id: 'org_settings', label: 'Branding & Settings', icon: Settings },
+          { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true, section: 'Home' },
+          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain, section: 'Home' },
+          { id: 'ai_assist', label: 'AI Assist', icon: Sparkles, section: 'Home' },
+          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban, section: 'Portfolio' },
+          { id: 'properties', label: 'Properties & Units', icon: Building, section: 'Portfolio' },
+          { id: 'tenants_list', label: 'Tenants Directory', icon: Users, section: 'Portfolio' },
+          { id: 'org_users', label: 'Staff & Roles', icon: Users, section: 'Portfolio' },
+          { id: 'manager_tickets', label: 'All Tickets', icon: Ticket, section: 'Operations' },
+          { id: 'preventive', label: 'Preventive PM', icon: Calendar, section: 'Operations' },
+          { id: 'sla_config', label: 'SLA Matrix', icon: Shield, section: 'Operations' },
+          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, section: 'Finance' },
+          { id: 'deposits', label: 'Deposits', icon: Wallet, section: 'Finance' },
+          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart, section: 'Finance' },
+          { id: 'staff_schedule', label: 'Staff Rostering', icon: Calendar, section: 'Team' },
+          { id: 'vendors', label: 'Vendors', icon: Truck, section: 'Team' },
+          { id: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Team' },
+          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Team' },
+          { id: 'compliance_audit', label: 'Compliance Audit', icon: History, section: 'Settings' },
+          { id: 'white_label', label: 'White-label', icon: Palette, section: 'Settings' },
+          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse, section: 'Settings' },
+          { id: 'org_settings', label: 'Branding & Settings', icon: Settings, section: 'Settings' },
         ];
       case 'super_admin':
         return [
-          { id: 'super_overview', label: 'Platform Dashboard', icon: LayoutDashboard, highlight: true },
-          { id: 'super_approvals', label: 'Org Approvals', icon: ShieldCheck, badgeCount: 'Pending' },
-          { id: 'super_organizations', label: 'All Organisations', icon: Layers },
-          { id: 'subscription_billing', label: 'Subscription Billing', icon: CreditCard },
-          { id: 'analytics_reports', label: 'Global Analytics', icon: BarChart3 },
-          { id: 'permissions', label: 'Permissions', icon: KeyRound },
-          { id: 'super_users', label: 'User Directory', icon: Users },
-          { id: 'super_listings', label: 'Marketplace Vacancies', icon: Store },
-          { id: 'compliance_audit', label: 'Compliance Audit', icon: History },
-          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse },
-          { id: 'phase7_elevate', label: 'Command Centre', icon: Rocket },
-          { id: 'db_backup', label: 'Database Backup', icon: Settings },
+          { id: 'super_overview', label: 'Platform Dashboard', icon: LayoutDashboard, highlight: true, section: 'Platform' },
+          { id: 'super_approvals', label: 'Org Approvals', icon: ShieldCheck, badgeCount: 'Pending', section: 'Platform' },
+          { id: 'super_organizations', label: 'All Organisations', icon: Layers, section: 'Platform' },
+          { id: 'subscription_billing', label: 'Subscription Billing', icon: CreditCard, section: 'Platform' },
+          { id: 'analytics_reports', label: 'Global Analytics', icon: BarChart3, section: 'Insights' },
+          { id: 'super_users', label: 'User Directory', icon: Users, section: 'Insights' },
+          { id: 'super_listings', label: 'Marketplace Vacancies', icon: Store, section: 'Marketplace' },
+          { id: 'compliance_audit', label: 'Compliance Audit', icon: History, section: 'System' },
+          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse, section: 'System' },
+          { id: 'db_backup', label: 'Database Backup', icon: Settings, section: 'System' },
         ];
       default:
         return [
-          { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'manager_tickets', label: 'Tickets', icon: Ticket },
+          { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, section: 'Home' },
+          { id: 'manager_tickets', label: 'Tickets', icon: Ticket, section: 'Home' },
         ];
     }
   };
 
-  const navItems = getNavItems() || [];
+  const navItems = getNavItems();
+  const sections = Array.from(new Set(navItems.map((i) => i.section || 'Menu')));
 
   return (
     <aside
-      className={`relative flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out shrink-0 z-30 ${
-        collapsed ? 'w-18' : 'w-64'
+      className={`relative flex flex-col h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-200 border-r border-white/5 shadow-xl transition-all duration-300 ease-in-out shrink-0 z-30 ${
+        collapsed ? 'w-[4.5rem]' : 'w-64'
       }`}
     >
-      <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        {!collapsed && (
-          <div className="min-w-0 pr-2">
-            <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider truncate">
-              {role === 'super_admin' ? 'Super Admin Console' : organizationName || 'Umhlaba Wami'}
-            </h2>
-            {orgCode && role !== 'super_admin' && (
-              <p className="text-[11px] font-mono text-blue-600 dark:text-blue-400 truncate">Code: {orgCode}</p>
-            )}
+      {/* Brand header */}
+      <div className="px-3 pt-4 pb-3 border-b border-white/5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-600/30 shrink-0">
+            <Building className="w-4.5 h-4.5 text-white" />
           </div>
-        )}
-        <button
-          onClick={onToggleCollapse}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition mx-auto"
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto py-3 px-2.5 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all group relative ${
-                isActive
-                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20 font-semibold'
-                  : item.highlight
-                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon
-                className={`w-4 h-4 shrink-0 ${
-                  isActive
-                    ? 'text-white'
-                    : item.highlight
-                    ? 'text-blue-600'
-                    : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200'
-                }`}
-              />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.badgeCount && (
-                <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">
-                  {item.badgeCount}
-                </span>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-white tracking-wide truncate">
+                {role === 'super_admin' ? 'Super Admin' : organizationName || 'Umhlaba Wami'}
+              </div>
+              {orgCode && role !== 'super_admin' ? (
+                <div className="text-[10px] font-mono text-blue-300/80 truncate">{orgCode}</div>
+              ) : (
+                <div className="text-[10px] text-slate-500 capitalize">{String(role).replace(/_/g, ' ')}</div>
               )}
-            </button>
-          );
-        })}
+            </div>
+          )}
+          <button
+            onClick={onToggleCollapse}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition shrink-0"
+            title={collapsed ? 'Expand' : 'Collapse'}
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
 
-      {!collapsed && (
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-[11px] text-slate-500">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-slate-600 dark:text-slate-300 capitalize">
-              {String(role || 'tenant').replace(/_/g, ' ')}
-            </span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-900 animate-pulse" />
+      {/* Nav */}
+      <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4 scrollbar-none">
+        {sections.map((section) => (
+          <div key={section}>
+            {!collapsed && (
+              <div className="px-2.5 mb-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                {section}
+              </div>
+            )}
+            <div className="space-y-0.5">
+              {navItems
+                .filter((i) => (i.section || 'Menu') === section)
+                .map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onTabChange(item.id)}
+                      title={collapsed ? item.label : undefined}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[12px] font-medium transition-all ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                          : item.highlight
+                          ? 'bg-blue-500/10 text-blue-300 hover:bg-blue-500/15'
+                          : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : item.highlight ? 'text-blue-400' : 'text-slate-500'}`} />
+                      {!collapsed && <span className="truncate flex-1 text-left">{item.label}</span>}
+                      {!collapsed && item.badgeCount && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">
+                          {item.badgeCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
           </div>
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">Operations hub</p>
+        ))}
+      </div>
+
+      {/* Footer status */}
+      {!collapsed && (
+        <div className="p-3 border-t border-white/5">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] text-slate-400">System online</span>
+          </div>
         </div>
       )}
     </aside>
