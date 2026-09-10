@@ -5,15 +5,18 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { db } from './db';
 import type { Organization, User, UserRole } from '../types';
 
-function friendlyError(err: { message?: string; code?: string; details?: string } | null): string {
+function friendlyError(err: { message?: string; code?: string; details?: string; hint?: string } | null): string {
   if (!err) return 'Something went wrong. Please try again.';
-  const m = (err.message || '') + ' ' + (err.details || '');
+  const m = `${err.message || ''} ${err.details || ''} ${err.hint || ''}`;
   if (m.includes('duplicate') || err.code === '23505') return 'This email or organisation is already registered.';
-  if (m.includes('row-level security') || m.includes('RLS')) {
-    return 'Permission denied while saving. Please ensure the database policies allow organisation registration.';
+  if (m.includes('row-level security') || m.includes('RLS') || m.toLowerCase().includes('permission denied')) {
+    return 'Permission denied while saving. Please run public/fix-org-registration.sql in the Supabase SQL Editor, then try again.';
   }
   if (m.includes('Failed to fetch') || m.includes('Network')) {
     return 'Network error. Check your connection and try again.';
+  }
+  if (m.includes('Could not find the function') || m.includes('register_organization_application')) {
+    return 'Registration function missing. Run public/fix-org-registration.sql in Supabase, then try again.';
   }
   return err.message || 'Could not complete this action. Please try again.';
 }
@@ -31,13 +34,35 @@ export async function submitOrganisationRegistration(input: {
     return { success: false, error: 'Service is temporarily unavailable. Please try again later.' };
   }
 
-  const code = `PEND-${Date.now().toString(36).toUpperCase().slice(-8)}`;
+  // Preferred: SECURITY DEFINER RPC (works with strict RLS)
+  const { data: rpcData, error: rpcError } = await supabase.rpc('register_organization_application', {
+    p_company_name: input.company_name,
+    p_owner_name: input.owner_name,
+    p_email: input.email.toLowerCase().trim(),
+    p_phone: input.phone,
+    p_address: input.address,
+    p_subscription_tier: input.subscription_tier || 'Starter',
+    p_monthly_fee_estimate: input.monthly_fee_estimate ?? null,
+  });
 
+  if (!rpcError && rpcData) {
+    const org = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as Organization;
+    db.organizations.unshift(org);
+    db.saveToStorage();
+    return { success: true, organization: org };
+  }
+
+  // Fallback: direct insert (needs INSERT policy)
+  if (rpcError) {
+    console.warn('[provisioning] RPC failed, trying direct insert', rpcError.message);
+  }
+
+  const code = `PEND-${Date.now().toString(36).toUpperCase().slice(-8)}`;
   const row = {
     organization_code: code,
     company_name: input.company_name,
     owner_name: input.owner_name,
-    email: input.email.toLowerCase(),
+    email: input.email.toLowerCase().trim(),
     phone: input.phone,
     address: input.address,
     subscription_tier: input.subscription_tier || 'Starter',
@@ -53,6 +78,10 @@ export async function submitOrganisationRegistration(input: {
 
   if (error) {
     console.error('[provisioning] org register', error);
+    // Prefer RPC error message if it was "function missing", else insert error
+    if (rpcError && (rpcError.message || '').includes('Could not find the function')) {
+      return { success: false, error: friendlyError(rpcError) };
+    }
     return { success: false, error: friendlyError(error) };
   }
 
@@ -94,10 +123,6 @@ export async function approveOrganisation(
   return { success: true };
 }
 
-/**
- * Create staff/tenant: Auth account + public.users in one step.
- * Restores the admin session after signUp so the creator stays signed in.
- */
 export async function createStaffUser(input: {
   organization_id: string;
   name: string;
@@ -133,7 +158,6 @@ export async function createStaffUser(input: {
 
   if (signUpErr && !signUpErr.message.toLowerCase().includes('already')) {
     console.warn('[provisioning] signUp', signUpErr.message);
-    // Continue — profile insert may still work if Auth user exists
   }
 
   if (adminSession) {
@@ -157,9 +181,7 @@ export async function createStaffUser(input: {
     .select('*')
     .single();
 
-  if (error) {
-    return { success: false, error: friendlyError(error) };
-  }
+  if (error) return { success: false, error: friendlyError(error) };
 
   const user = data as User;
   db.users.push(user);
@@ -194,40 +216,10 @@ export async function submitListingLead(input: {
   });
 
   if (error) {
-    // Table may not exist yet — fall back to local notification only
     console.warn('[provisioning] listing lead', error.message);
     return { success: false, error: friendlyError(error) };
   }
   return { success: true };
-}
-
-export async function createPropertyCenter(input: {
-  organization_id: string;
-  name: string;
-  address: string;
-  location: string;
-  description?: string;
-}): Promise<{ success: boolean; id?: string; error?: string }> {
-  if (!isSupabaseConfigured || !supabase) {
-    return { success: false, error: 'Service unavailable.' };
-  }
-
-  const { data, error } = await supabase
-    .from('shopping_centers')
-    .insert({
-      organization_id: input.organization_id,
-      name: input.name,
-      address: input.address,
-      location: input.location,
-      description: input.description || null,
-      status: 'Active',
-    })
-    .select('id')
-    .single();
-
-  if (error) return { success: false, error: friendlyError(error) };
-  await db.tryHydrateFromSupabase?.();
-  return { success: true, id: data.id as string };
 }
 
 export async function uploadUserFile(
@@ -241,16 +233,14 @@ export async function uploadUserFile(
 
   if (isSupabaseConfigured && supabase) {
     const path = `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const bucket = 'property-images';
-    const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    const { error } = await supabase.storage.from('property-images').upload(path, file, {
       upsert: true,
       contentType: file.type,
     });
     if (!error) {
-      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      const { data } = supabase.storage.from('property-images').getPublicUrl(path);
       return { success: true, url: data.publicUrl };
     }
-    console.warn('[upload]', error.message);
   }
 
   return new Promise((resolve) => {
