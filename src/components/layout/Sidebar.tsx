@@ -80,26 +80,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Account' },
           { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Account' },
         ];
+
+      // Property Manager = day-to-day centre operations
       case 'property_manager':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true, section: 'Home' },
-          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain, section: 'Home' },
-          { id: 'ai_assist', label: 'AI Assist', icon: Sparkles, section: 'Home' },
-          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban, section: 'Portfolio' },
-          { id: 'properties', label: 'Properties & Centers', icon: Building, section: 'Portfolio' },
-          { id: 'tenants_list', label: 'Tenants', icon: Users, section: 'Portfolio' },
           { id: 'manager_tickets', label: 'Tickets & SLAs', icon: Ticket, section: 'Operations' },
           { id: 'maintenance_ops', label: 'Maintenance Ops', icon: Wrench, section: 'Operations' },
           { id: 'preventive', label: 'Preventive PM', icon: Calendar, section: 'Operations' },
           { id: 'sla_config', label: 'SLA Matrix', icon: Shield, section: 'Operations' },
-          { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, section: 'Finance' },
-          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart, section: 'Finance' },
+          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban, section: 'Portfolio' },
+          { id: 'properties', label: 'Properties & Centers', icon: Building, section: 'Portfolio' },
+          { id: 'tenants_list', label: 'Tenants', icon: Users, section: 'Portfolio' },
           { id: 'staff_schedule', label: 'Roster & Shifts', icon: Calendar, section: 'Team' },
           { id: 'vendors', label: 'Vendors', icon: Truck, section: 'Team' },
           { id: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Team' },
           { id: 'messages', label: 'Messages', icon: MessageSquare, section: 'Team' },
           { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Team' },
+          { id: 'rent_roll_arrears', label: 'Rent Roll (view)', icon: DollarSign, section: 'Finance' },
+          { id: 'board_pack', label: 'Board Pack', icon: FileBarChart, section: 'Finance' },
         ];
+
       case 'maintenance':
         return [
           { id: 'maintenance_jobs', label: 'My Jobs', icon: Wrench, section: 'Work' },
@@ -108,6 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'messages', label: 'Operations Chat', icon: MessageSquare, section: 'Work' },
           { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Work' },
         ];
+
       case 'finance':
         return [
           { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, highlight: true, section: 'Finance' },
@@ -118,33 +120,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'financial_requests', label: 'Petty Cash & Requests', icon: CreditCard, section: 'Finance' },
           { id: 'finance_documents', label: 'Documents & Sage', icon: FileText, section: 'Finance' },
           { id: 'analytics_reports', label: 'Financial Reports', icon: BarChart3, section: 'Finance' },
-          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain, section: 'Insights' },
           { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Insights' },
         ];
+
+      // Client Admin = company executive (oversight, people, structure — not day-to-day ops)
       case 'admin':
         return [
-          { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true, section: 'Home' },
+          { id: 'centre_pulse', label: 'Portfolio Overview', icon: Activity, highlight: true, section: 'Home' },
           { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain, section: 'Home' },
-          { id: 'ai_assist', label: 'AI Assist', icon: Sparkles, section: 'Home' },
-          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban, section: 'Portfolio' },
           { id: 'properties', label: 'Properties & Units', icon: Building, section: 'Portfolio' },
           { id: 'tenants_list', label: 'Tenants Directory', icon: Users, section: 'Portfolio' },
           { id: 'org_users', label: 'Staff & Roles', icon: Users, section: 'Portfolio' },
-          { id: 'manager_tickets', label: 'All Tickets', icon: Ticket, section: 'Operations' },
-          { id: 'preventive', label: 'Preventive PM', icon: Calendar, section: 'Operations' },
-          { id: 'sla_config', label: 'SLA Matrix', icon: Shield, section: 'Operations' },
+          { id: 'manager_tickets', label: 'Ticket Escalations', icon: Ticket, section: 'Oversight' },
           { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, section: 'Finance' },
           { id: 'deposits', label: 'Deposits', icon: Wallet, section: 'Finance' },
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart, section: 'Finance' },
-          { id: 'staff_schedule', label: 'Staff Rostering', icon: Calendar, section: 'Team' },
-          { id: 'vendors', label: 'Vendors', icon: Truck, section: 'Team' },
-          { id: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Team' },
-          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Team' },
+          { id: 'announcements', label: 'Company Announcements', icon: Megaphone, section: 'Company' },
+          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Company' },
           { id: 'compliance_audit', label: 'Compliance Audit', icon: History, section: 'Settings' },
-          { id: 'white_label', label: 'White-label', icon: Palette, section: 'Settings' },
-          { id: 'platform_health', label: 'Platform Health', icon: HeartPulse, section: 'Settings' },
           { id: 'org_settings', label: 'Branding & Settings', icon: Settings, section: 'Settings' },
+          { id: 'white_label', label: 'White-label', icon: Palette, section: 'Settings' },
         ];
+
       case 'super_admin':
         return [
           { id: 'super_overview', label: 'Platform Dashboard', icon: LayoutDashboard, highlight: true, section: 'Platform' },
@@ -158,6 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'platform_health', label: 'Platform Health', icon: HeartPulse, section: 'System' },
           { id: 'db_backup', label: 'Database Backup', icon: Settings, section: 'System' },
         ];
+
       default:
         return [
           { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, section: 'Home' },
@@ -175,7 +173,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         collapsed ? 'w-[4.5rem]' : 'w-64'
       }`}
     >
-      {/* Brand header */}
       <div className="px-3 pt-4 pb-3 border-b border-white/5">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-600/30 shrink-0">
@@ -203,7 +200,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Nav */}
       <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4 scrollbar-none">
         {sections.map((section) => (
           <div key={section}>
@@ -232,7 +228,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           : 'text-slate-400 hover:text-white hover:bg-white/5'
                       }`}
                     >
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : item.highlight ? 'text-blue-400' : 'text-slate-500'}`} />
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${
+                          isActive ? 'text-white' : item.highlight ? 'text-blue-400' : 'text-slate-500'
+                        }`}
+                      />
                       {!collapsed && <span className="truncate flex-1 text-left">{item.label}</span>}
                       {!collapsed && item.badgeCount && (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">
@@ -247,7 +247,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ))}
       </div>
 
-      {/* Footer status */}
       {!collapsed && (
         <div className="p-3 border-t border-white/5">
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/5">
