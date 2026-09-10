@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { WifiOff } from 'lucide-react';
 
 export const OfflineBanner: React.FC = () => {
   const [offline, setOffline] = useState(!navigator.onLine);
@@ -18,9 +17,8 @@ export const OfflineBanner: React.FC = () => {
   if (!offline) return null;
 
   return (
-    <div className="bg-amber-500 text-amber-950 px-4 py-1.5 text-[11px] font-semibold flex items-center justify-center gap-2 z-50">
-      <WifiOff className="w-3.5 h-3.5" />
-      You are offline — demo data remains available; sync resumes when connectivity returns.
+    <div className="fixed bottom-0 inset-x-0 z-[100] bg-amber-600 text-white text-center text-xs font-medium py-2 px-4">
+      You appear to be offline. Some actions may not save until you reconnect.
     </div>
   );
 };
