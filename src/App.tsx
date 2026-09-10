@@ -55,7 +55,9 @@ import { CheckCircle2, Radio } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(auth.getCurrentUser());
-  const [viewMode, setViewMode] = useState<'marketplace' | 'dashboard'>('marketplace');
+  const [viewMode, setViewMode] = useState<'marketplace' | 'dashboard'>(
+    auth.getCurrentUser() ? 'dashboard' : 'marketplace'
+  );
   const [sidebarActiveTab, setSidebarActiveTab] = useState('overview');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -81,8 +83,7 @@ export default function App() {
   }, [isDarkMode]);
 
   useEffect(() => {
-    // Prefer Supabase as source of truth when env keys are present
-    void db.tryHydrateFromSupabase();
+    void db.tryHydrateFromSupabase?.();
   }, []);
 
   useEffect(() => {
@@ -99,13 +100,20 @@ export default function App() {
 
   const getDefaultTabForRole = (role?: UserRole): string => {
     switch (role) {
-      case 'tenant': return 'tenant_overview';
-      case 'property_manager': return 'centre_pulse';
-      case 'maintenance': return 'maintenance_jobs';
-      case 'finance': return 'rent_roll_arrears';
-      case 'admin': return 'centre_pulse';
-      case 'super_admin': return 'super_overview';
-      default: return 'overview';
+      case 'tenant':
+        return 'tenant_overview';
+      case 'property_manager':
+        return 'centre_pulse';
+      case 'maintenance':
+        return 'maintenance_jobs';
+      case 'finance':
+        return 'rent_roll_arrears';
+      case 'admin':
+        return 'centre_pulse';
+      case 'super_admin':
+        return 'super_overview';
+      default:
+        return 'overview';
     }
   };
 
@@ -117,9 +125,31 @@ export default function App() {
     branding.applyForOrganization(currentUser?.organization_id);
   }, [currentUser?.organization_id]);
 
+  /** Never show an empty dashboard when signed out. */
+  useEffect(() => {
+    if (viewMode === 'dashboard' && !currentUser) {
+      setViewMode('marketplace');
+      setIsLoginOpen(true);
+    }
+  }, [viewMode, currentUser]);
+
+  const requireAuth = (action?: () => void) => {
+    if (currentUser) {
+      action?.();
+      return true;
+    }
+    setIsLoginOpen(true);
+    return false;
+  };
+
   const handleTabChange = (tab: string) => {
     if (tab === 'report_issue') setIsCreateTicketOpen(true);
     else setSidebarActiveTab(tab);
+  };
+
+  const goToDashboard = () => {
+    if (!requireAuth()) return;
+    setViewMode('dashboard');
   };
 
   const activeEmergency = db.announcements.find(
@@ -131,6 +161,21 @@ export default function App() {
   );
 
   const renderDashboard = () => {
+    if (!currentUser) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[40vh] text-center p-8">
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">Sign in to open the operations dashboard.</p>
+          <button
+            type="button"
+            onClick={() => setIsLoginOpen(true)}
+            className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold"
+          >
+            Sign In
+          </button>
+        </div>
+      );
+    }
+
     if (sidebarActiveTab === 'centre_pulse')
       return <CentrePulseView onViewTicket={(id) => setSelectedTicketId(id)} onNavigate={handleTabChange} />;
     if (sidebarActiveTab === 'sla_config') return <SlaConfigView />;
@@ -191,17 +236,45 @@ export default function App() {
     if (sidebarActiveTab === 'tenant_documents') return <TenantDocumentsView />;
     if (sidebarActiveTab === 'org_users' || sidebarActiveTab === 'super_users') return <OrgUsersView />;
     if (sidebarActiveTab === 'org_settings') return <OrgSettingsView />;
-    if (['finance', 'finance_overview', 'rent_roll', 'expenses_ledger', 'transactions', 'financial_requests', 'finance_documents'].includes(sidebarActiveTab))
+    if (
+      [
+        'finance',
+        'finance_overview',
+        'rent_roll',
+        'expenses_ledger',
+        'transactions',
+        'financial_requests',
+        'finance_documents',
+      ].includes(sidebarActiveTab)
+    )
       return <FinancePortal initialTab={sidebarActiveTab} />;
-    if (['super_admin', 'super_overview', 'super_approvals', 'super_organizations', 'super_listings', 'db_backup'].includes(sidebarActiveTab) || currentUser?.role === 'super_admin')
+    if (
+      [
+        'super_admin',
+        'super_overview',
+        'super_approvals',
+        'super_organizations',
+        'super_listings',
+        'db_backup',
+      ].includes(sidebarActiveTab)
+    )
       return <SuperAdminPortal initialTab={sidebarActiveTab} />;
-    if (currentUser?.role === 'tenant')
-      return <TenantDashboard onOpenCreateTicket={() => setIsCreateTicketOpen(true)} onViewTicket={(id) => setSelectedTicketId(id)} />;
-    if (currentUser?.role === 'property_manager' || currentUser?.role === 'admin')
+
+    // Role defaults when tab is overview-ish
+    if (currentUser.role === 'tenant')
+      return (
+        <TenantDashboard
+          onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
+          onViewTicket={(id) => setSelectedTicketId(id)}
+        />
+      );
+    if (currentUser.role === 'property_manager' || currentUser.role === 'admin')
       return <CentrePulseView onViewTicket={(id) => setSelectedTicketId(id)} onNavigate={handleTabChange} />;
-    if (currentUser?.role === 'maintenance')
+    if (currentUser.role === 'maintenance')
       return <MaintenancePortal onViewTicket={(id) => setSelectedTicketId(id)} />;
-    if (currentUser?.role === 'finance') return <RentRollArrearsView />;
+    if (currentUser.role === 'finance') return <RentRollArrearsView />;
+    if (currentUser.role === 'super_admin') return <SuperAdminPortal initialTab={sidebarActiveTab} />;
+
     return (
       <ManagerDashboard
         onViewTicket={(id) => setSelectedTicketId(id)}
@@ -218,8 +291,12 @@ export default function App() {
         <div className="bg-red-600 text-white px-4 py-2 text-xs font-semibold shadow-md z-40">
           <div className="flex items-center gap-2 max-w-7xl mx-auto w-full">
             <Radio className="w-4 h-4 animate-pulse shrink-0" />
-            <span className="font-bold uppercase tracking-wider text-[10px] bg-red-800 px-1.5 py-0.5 rounded">Center Alert</span>
-            <span className="truncate"><strong>{activeEmergency.title}:</strong> {activeEmergency.message}</span>
+            <span className="font-bold uppercase tracking-wider text-[10px] bg-red-800 px-1.5 py-0.5 rounded">
+              Center Alert
+            </span>
+            <span className="truncate">
+              <strong>{activeEmergency.title}:</strong> {activeEmergency.message}
+            </span>
           </div>
         </div>
       )}
@@ -230,44 +307,69 @@ export default function App() {
           if (view === 'marketplace' || view === 'how_it_works' || view === 'solutions') {
             setViewMode('marketplace');
             setTimeout(() => {
-              if (view === 'how_it_works') document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-              else if (view === 'solutions') document.getElementById('enterprise-features')?.scrollIntoView({ behavior: 'smooth' });
+              if (view === 'how_it_works')
+                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+              else if (view === 'solutions')
+                document.getElementById('enterprise-features')?.scrollIntoView({ behavior: 'smooth' });
               else window.scrollTo({ top: 0, behavior: 'smooth' });
             }, 50);
-          } else setViewMode('dashboard');
+          } else {
+            goToDashboard();
+          }
         }}
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenRegisterOrg={() => setIsRegisterOrgOpen(true)}
         onOpenListLead={() => setIsListLeadOpen(true)}
-        onOpenNotifications={() => setSidebarActiveTab('notifications')}
+        onOpenNotifications={() => {
+          if (!requireAuth()) return;
+          setViewMode('dashboard');
+          setSidebarActiveTab('notifications');
+        }}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         viewMode={viewMode}
-        onSwitchViewMode={(mode) => setViewMode(mode)}
+        onSwitchViewMode={(mode) => {
+          if (mode === 'dashboard') goToDashboard();
+          else setViewMode('marketplace');
+        }}
         onLoginClick={() => setIsLoginOpen(true)}
         onRegisterClick={() => setIsRegisterOrgOpen(true)}
       />
 
       <div className="flex-1 flex flex-col">
-        {viewMode === 'marketplace' ? (
+        {viewMode === 'marketplace' || !currentUser ? (
           <main className="flex-1">
             <MarketplaceView
-              onSelectProperty={(prop, shop) => { setSelectedProperty(prop); setSelectedShop(shop || null); }}
-              onEnquire={(prop, shop) => { setEnquiryProperty(prop); setEnquiryShop(shop || null); }}
+              onSelectProperty={(prop, shop) => {
+                setSelectedProperty(prop);
+                setSelectedShop(shop || null);
+              }}
+              onEnquire={(prop, shop) => {
+                setEnquiryProperty(prop);
+                setEnquiryShop(shop || null);
+              }}
               onOpenListLead={() => setIsListLeadOpen(true)}
-              onManageClick={() => setViewMode('dashboard')}
+              onManageClick={goToDashboard}
             />
           </main>
         ) : (
           <div className="flex-1 flex max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 gap-6 pb-24 lg:pb-6">
             <div className="hidden lg:block w-64 shrink-0">
               <Sidebar
-                role={currentUser?.role || 'tenant'}
+                role={currentUser.role || 'tenant'}
                 activeTab={sidebarActiveTab}
                 onTabChange={handleTabChange}
                 onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
-                organizationName={currentUser?.organization_id ? db.organizations.find((o) => o.id === currentUser.organization_id)?.company_name : undefined}
-                orgCode={currentUser?.organization_id ? db.organizations.find((o) => o.id === currentUser.organization_id)?.organization_code : undefined}
+                organizationName={
+                  currentUser.organization_id
+                    ? db.organizations.find((o) => o.id === currentUser.organization_id)?.company_name
+                    : undefined
+                }
+                orgCode={
+                  currentUser.organization_id
+                    ? db.organizations.find((o) => o.id === currentUser.organization_id)?.organization_code
+                    : undefined
+                }
               />
             </div>
             <div className="flex-1 min-w-0">{renderDashboard()}</div>
@@ -276,7 +378,12 @@ export default function App() {
       </div>
 
       {viewMode === 'dashboard' && currentUser && (
-        <MobileBottomNav role={currentUser.role} activeTab={sidebarActiveTab} onTabChange={handleTabChange} onOpenCreateTicket={() => setIsCreateTicketOpen(true)} />
+        <MobileBottomNav
+          role={currentUser.role}
+          activeTab={sidebarActiveTab}
+          onTabChange={handleTabChange}
+          onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
+        />
       )}
 
       <Footer />
@@ -291,14 +398,84 @@ export default function App() {
         </div>
       )}
 
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} onRegisterClick={() => { setIsLoginOpen(false); setIsRegisterOrgOpen(true); }} onLoginSuccess={() => showToast('Welcome back', 'You are signed in to your operational dashboard.')} />
-      <RegisterOrgModal isOpen={isRegisterOrgOpen} onClose={() => setIsRegisterOrgOpen(false)} onSuccess={() => showToast('Registration Submitted', 'Your commercial landlord application has been submitted for Super Admin approval.')} />
-      <PropertyDetailModal property={selectedProperty} shop={selectedShop} onClose={() => { setSelectedProperty(null); setSelectedShop(null); }} onEnquire={(prop, shop) => { setSelectedProperty(null); setSelectedShop(null); setEnquiryProperty(prop); setEnquiryShop(shop || null); }} />
-      <PropertyEnquiryModal property={enquiryProperty} shop={enquiryShop} isOpen={!!enquiryProperty} onClose={() => { setEnquiryProperty(null); setEnquiryShop(null); }} onSuccess={() => showToast('Inquiry Submitted', 'The center property manager has received your commercial leasing application.')} />
-      <ListPropertyLeadModal isOpen={isListLeadOpen} onClose={() => setIsListLeadOpen(false)} onSuccess={() => showToast('Commercial Listing Received', 'Our onboarding team will contact you within 24 hours.')} />
-      <CreateTicketWizard isOpen={isCreateTicketOpen} onClose={() => setIsCreateTicketOpen(false)} onSuccess={(ticketNumber) => showToast('Ticket Dispatched!', `Ticket #${ticketNumber} created with active SLA countdown.`)} />
-      <TicketDetailModal ticketId={selectedTicketId} onClose={() => setSelectedTicketId(null)} onRefresh={() => showToast('Ticket Updated', 'Maintenance status and audit trail saved successfully.')} />
-      <BroadcastModal isOpen={isBroadcastOpen} onClose={() => setIsBroadcastOpen(false)} onSent={() => showToast('Broadcast Sent', 'Emergency center alert is now active across all screens.')} />
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onRegisterClick={() => {
+          setIsLoginOpen(false);
+          setIsRegisterOrgOpen(true);
+        }}
+        onLoginSuccess={() =>
+          showToast('Welcome back', 'You are signed in to your operational dashboard.')
+        }
+      />
+      <RegisterOrgModal
+        isOpen={isRegisterOrgOpen}
+        onClose={() => setIsRegisterOrgOpen(false)}
+        onSuccess={() =>
+          showToast(
+            'Registration Submitted',
+            'Your commercial landlord application has been submitted for Super Admin approval.'
+          )
+        }
+      />
+      <PropertyDetailModal
+        property={selectedProperty}
+        shop={selectedShop}
+        onClose={() => {
+          setSelectedProperty(null);
+          setSelectedShop(null);
+        }}
+        onEnquire={(prop, shop) => {
+          setSelectedProperty(null);
+          setSelectedShop(null);
+          setEnquiryProperty(prop);
+          setEnquiryShop(shop || null);
+        }}
+      />
+      <PropertyEnquiryModal
+        property={enquiryProperty}
+        shop={enquiryShop}
+        isOpen={!!enquiryProperty}
+        onClose={() => {
+          setEnquiryProperty(null);
+          setEnquiryShop(null);
+        }}
+        onSuccess={() =>
+          showToast(
+            'Inquiry Submitted',
+            'The center property manager has received your commercial leasing application.'
+          )
+        }
+      />
+      <ListPropertyLeadModal
+        isOpen={isListLeadOpen}
+        onClose={() => setIsListLeadOpen(false)}
+        onSuccess={() =>
+          showToast('Commercial Listing Received', 'Our onboarding team will contact you within 24 hours.')
+        }
+      />
+      <CreateTicketWizard
+        isOpen={isCreateTicketOpen}
+        onClose={() => setIsCreateTicketOpen(false)}
+        onSuccess={(ticketNumber) =>
+          showToast('Ticket Dispatched!', `Ticket #${ticketNumber} created with active SLA countdown.`)
+        }
+      />
+      <TicketDetailModal
+        ticketId={selectedTicketId}
+        onClose={() => setSelectedTicketId(null)}
+        onRefresh={() =>
+          showToast('Ticket Updated', 'Maintenance status and audit trail saved successfully.')
+        }
+      />
+      <BroadcastModal
+        isOpen={isBroadcastOpen}
+        onClose={() => setIsBroadcastOpen(false)}
+        onSent={() =>
+          showToast('Broadcast Sent', 'Emergency center alert is now active across all screens.')
+        }
+      />
     </div>
   );
 }
