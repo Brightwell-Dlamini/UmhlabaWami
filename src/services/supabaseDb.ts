@@ -1,6 +1,5 @@
 /**
- * Supabase data access helpers (Phase 2+).
- * Mirrors operations needed by the UI while using PostgreSQL + RLS.
+ * Supabase data access helpers.
  * hydrateAll() loads remote rows into the in-memory DbService shape.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -24,7 +23,6 @@ function requireClient() {
   return supabase;
 }
 
-/** Full snapshot used to replace local demo seed when backend mode is on. */
 export type RemoteSnapshot = {
   organizations: Organization[];
   users: User[];
@@ -58,18 +56,25 @@ export async function hydrateAll(): Promise<RemoteSnapshot> {
     client.from('tickets').select('*').order('created_at', { ascending: false }),
   ]);
 
-  const firstErr =
-    organizations.error ||
-    users.error ||
-    shoppingCenters.error ||
-    properties.error ||
-    shops.error ||
-    tenants.error ||
-    leases.error ||
-    tickets.error;
-  if (firstErr) throw firstErr;
+  for (const [name, res] of [
+    ['organizations', organizations],
+    ['users', users],
+    ['shopping_centers', shoppingCenters],
+    ['properties', properties],
+    ['shops', shops],
+    ['tenants', tenants],
+    ['leases', leases],
+    ['tickets', tickets],
+  ] as const) {
+    if ((res as { error?: { message: string } }).error) {
+      console.warn(
+        '[supabaseDb] hydrate partial error on',
+        name,
+        (res as { error: { message: string } }).error.message
+      );
+    }
+  }
 
-  // Map lease.deposit → deposit_amount for app types where needed
   const mappedLeases = (leases.data || []).map((row: Record<string, unknown>) => ({
     ...row,
     deposit_amount: row.deposit ?? row.deposit_amount,
@@ -88,6 +93,28 @@ export async function hydrateAll(): Promise<RemoteSnapshot> {
   };
 }
 
+/** Public marketplace rows readable by anon. */
+export async function hydratePublicListings(): Promise<{
+  shops: Shop[];
+  properties: Property[];
+  shoppingCenters: ShoppingCenter[];
+}> {
+  const client = requireClient();
+  const [shops, properties, shoppingCenters] = await Promise.all([
+    client.from('shops').select('*').eq('public_listing', true),
+    client.from('properties').select('*'),
+    client.from('shopping_centers').select('*'),
+  ]);
+  if (shops.error) console.warn('[supabaseDb] public shops', shops.error.message);
+  if (properties.error) console.warn('[supabaseDb] public properties', properties.error.message);
+  if (shoppingCenters.error) console.warn('[supabaseDb] public centers', shoppingCenters.error.message);
+  return {
+    shops: (shops.data || []) as Shop[],
+    properties: (properties.data || []) as Property[],
+    shoppingCenters: (shoppingCenters.data || []) as ShoppingCenter[],
+  };
+}
+
 export async function fetchAvailableShops(): Promise<Shop[]> {
   const client = requireClient();
   const { data, error } = await client
@@ -96,7 +123,6 @@ export async function fetchAvailableShops(): Promise<Shop[]> {
     .eq('public_listing', true)
     .eq('status', 'Available')
     .order('public_featured', { ascending: false });
-
   if (error) throw error;
   return (data || []) as Shop[];
 }
@@ -145,7 +171,6 @@ export async function createTicketRemote(input: {
     })
     .select()
     .single();
-
   if (error) throw error;
   return data as Ticket;
 }
@@ -165,7 +190,6 @@ export async function approveOrganizationRemote(
     .eq('id', orgId)
     .select()
     .single();
-
   if (error) throw error;
   return data as Organization;
 }
@@ -194,42 +218,6 @@ export async function uploadAttachment(
     contentType: file.type,
   });
   if (error) throw error;
-
   const { data } = client.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
-}
-
-export async function registerOrganizationRemote(payload: {
-  company_name: string;
-  owner_name: string;
-  email: string;
-  phone: string;
-  address: string;
-  subscription_tier: string;
-  monthly_fee_estimate?: number;
-  organization_code: string;
-}): Promise<Organization> {
-  const client = requireClient();
-  const { data, error } = await client
-    .from('organizations')
-    .insert({
-      ...payload,
-      status: 'Pending Approval',
-      property_limit: payload.subscription_tier === 'Enterprise' ? 999 : payload.subscription_tier === 'Professional' ? 10 : 3,
-      tenant_limit: payload.subscription_tier === 'Enterprise' ? 9999 : payload.subscription_tier === 'Professional' ? 500 : 100,
-      user_limit: payload.subscription_tier === 'Enterprise' ? 999 : payload.subscription_tier === 'Professional' ? 50 : 10,
-      storage_limit: payload.subscription_tier === 'Enterprise' ? 500 : payload.subscription_tier === 'Professional' ? 50 : 10,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Organization;
-}
-
-export async function fetchUserByEmail(email: string): Promise<User | null> {
-  const client = requireClient();
-  const { data, error } = await client.from('users').select('*').eq('email', email).limit(1);
-  if (error || !data?.length) return null;
-  return data[0] as User;
 }
