@@ -1,6 +1,6 @@
 /**
  * UI-driven provisioning: organisations, staff users (Auth + profile), listing leads.
- * Every login-capable user MUST have Auth + public.users.
+ * Every login-capable user MUST have Auth + public.users (status Active after approval).
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { db } from './db';
@@ -11,13 +11,13 @@ function friendlyError(err: { message?: string; code?: string; details?: string;
   const m = `${err.message || ''} ${err.details || ''} ${err.hint || ''}`;
   if (m.includes('duplicate') || err.code === '23505') return 'This email or organisation is already registered.';
   if (m.includes('row-level security') || m.includes('RLS') || m.toLowerCase().includes('permission denied')) {
-    return 'Permission denied while saving. Run public/fix-org-admin-login.sql in Supabase, then try again.';
+    return 'Permission denied while saving. Run public/fix-activate-on-approve.sql in Supabase, then try again.';
   }
   if (m.includes('Failed to fetch') || m.includes('Network')) {
     return 'Network error. Check your connection and try again.';
   }
   if (m.includes('Could not find the function')) {
-    return 'Database function missing. Run public/fix-org-admin-login.sql in the Supabase SQL Editor.';
+    return 'Database function missing. Run public/fix-activate-on-approve.sql and public/fix-org-admin-login.sql.';
   }
   return err.message || 'Could not complete this action. Please try again.';
 }
@@ -70,6 +70,31 @@ async function bootstrapAdminProfile(input: {
     if (e2) return { success: false, error: friendlyError(e2) };
   }
   return { success: true };
+}
+
+/** Force public.users → Active for an approved org (SECURITY DEFINER). */
+async function activateOrgAdminUsers(orgId: string): Promise<void> {
+  if (!supabase) return;
+
+  const { error: rpcErr } = await supabase.rpc('activate_org_admin_on_approval', {
+    p_org_id: orgId,
+  });
+
+  if (rpcErr) {
+    console.warn('[provisioning] activate RPC', rpcErr.message);
+    // Fallback: update by org id and by email from org row
+    const { data: org } = await supabase.from('organizations').select('email').eq('id', orgId).maybeSingle();
+    await supabase
+      .from('users')
+      .update({ status: 'Active', role: 'admin', organization_id: orgId })
+      .eq('organization_id', orgId);
+    if (org?.email) {
+      await supabase
+        .from('users')
+        .update({ status: 'Active', role: 'admin', organization_id: orgId })
+        .eq('email', String(org.email).toLowerCase());
+    }
+  }
 }
 
 export async function submitOrganisationRegistration(input: {
@@ -229,24 +254,32 @@ export async function approveOrganisation(
 
   if (!org) return { success: false, error: 'Approval failed.' };
 
+  // CRITICAL: flip public.users from Pending → Active (SECURITY DEFINER)
+  await activateOrgAdminUsers(org.id);
+
   const username =
     (org as Organization & { preferred_username?: string }).preferred_username ||
     org.email.split('@')[0];
 
-  const boot = await bootstrapAdminProfile({
+  await bootstrapAdminProfile({
     orgId: org.id,
     username: String(username).toLowerCase(),
     name: org.owner_name,
-    email: org.email,
+    email: org.email.toLowerCase(),
     phone: org.phone,
     status: 'Active',
   });
-  if (!boot.success) console.warn('[provisioning] approve profile', boot.error);
+
+  // Belt-and-suspenders direct updates
+  await supabase
+    .from('users')
+    .update({ status: 'Active', organization_id: org.id, role: 'admin' })
+    .eq('organization_id', org.id);
 
   await supabase
     .from('users')
     .update({ status: 'Active', organization_id: org.id, role: 'admin' })
-    .eq('email', org.email);
+    .eq('email', org.email.toLowerCase());
 
   const idx = db.organizations.findIndex((o) => o.id === orgId);
   if (idx >= 0) db.organizations[idx] = org;
@@ -300,7 +333,7 @@ export async function provisionOrgAdminLogin(input: {
     }
     return {
       success: false,
-      error: `Auth: ${signUpErr.message}. If email exists under Authentication → Users, set password there, then Provision again for the profile.`,
+      error: `Auth: ${signUpErr.message}. If email exists under Authentication → Users, set password there, then try Provision again.`,
     };
   }
 
@@ -317,9 +350,12 @@ export async function provisionOrgAdminLogin(input: {
     .from('organizations')
     .update({
       preferred_username: username,
-      status: org.status === 'Pending Approval' ? org.status : 'Active',
+      status: org.status === 'Pending Approval' ? 'Active' : org.status,
+      approved_at: org.approved_at || new Date().toISOString(),
     })
     .eq('id', input.orgId);
+
+  await activateOrgAdminUsers(input.orgId);
 
   const boot = await bootstrapAdminProfile({
     orgId: input.orgId,
@@ -360,10 +396,6 @@ export async function rejectOrganisation(
   return { success: true };
 }
 
-/**
- * Create any staff/tenant login: Auth account + public.users via SECURITY DEFINER RPC.
- * Same path for property_manager, finance, maintenance, tenant, admin.
- */
 export async function createStaffUser(input: {
   organization_id: string;
   name: string;
@@ -386,7 +418,6 @@ export async function createStaffUser(input: {
   const { data: sessionData } = await supabase.auth.getSession();
   const adminSession = sessionData.session;
 
-  // 1) Auth user with password
   const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
     email,
     password: input.password,
@@ -414,7 +445,6 @@ export async function createStaffUser(input: {
 
   const authUserId = signUpData?.user?.id || null;
 
-  // 2) Restore creator session (Admin / Super Admin must stay logged in)
   if (adminSession) {
     await supabase.auth.setSession({
       access_token: adminSession.access_token,
@@ -422,7 +452,6 @@ export async function createStaffUser(input: {
     });
   }
 
-  // 3) public.users via SECURITY DEFINER (avoids RLS traps)
   const { data: rpcUser, error: rpcErr } = await supabase.rpc('bootstrap_staff_user', {
     p_org_id: input.organization_id,
     p_auth_user_id: authUserId,
