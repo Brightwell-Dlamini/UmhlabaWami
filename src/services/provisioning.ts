@@ -1,10 +1,22 @@
 /**
- * UI-driven provisioning: organisations, staff users, and Auth accounts.
- * Super Admin is the only seed; everything else is created from the product UI.
+ * UI-driven provisioning: organisations, staff users (Auth + profile), listing leads.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { db } from './db';
 import type { Organization, User, UserRole } from '../types';
+
+function friendlyError(err: { message?: string; code?: string; details?: string } | null): string {
+  if (!err) return 'Something went wrong. Please try again.';
+  const m = (err.message || '') + ' ' + (err.details || '');
+  if (m.includes('duplicate') || err.code === '23505') return 'This email or organisation is already registered.';
+  if (m.includes('row-level security') || m.includes('RLS')) {
+    return 'Permission denied while saving. Please ensure the database policies allow organisation registration.';
+  }
+  if (m.includes('Failed to fetch') || m.includes('Network')) {
+    return 'Network error. Check your connection and try again.';
+  }
+  return err.message || 'Could not complete this action. Please try again.';
+}
 
 export async function submitOrganisationRegistration(input: {
   company_name: string;
@@ -19,29 +31,29 @@ export async function submitOrganisationRegistration(input: {
     return { success: false, error: 'Service is temporarily unavailable. Please try again later.' };
   }
 
-  const { data, error } = await supabase
-    .from('organizations')
-    .insert({
-      organization_code: `PEND-${Date.now().toString().slice(-8)}`,
-      company_name: input.company_name,
-      owner_name: input.owner_name,
-      email: input.email,
-      phone: input.phone,
-      address: input.address,
-      subscription_tier: input.subscription_tier || 'Starter',
-      status: 'Pending Approval',
-      property_limit: 3,
-      tenant_limit: 100,
-      user_limit: 10,
-      storage_limit: 10,
-      monthly_fee_estimate: input.monthly_fee_estimate ?? null,
-    })
-    .select('*')
-    .single();
+  const code = `PEND-${Date.now().toString(36).toUpperCase().slice(-8)}`;
+
+  const row = {
+    organization_code: code,
+    company_name: input.company_name,
+    owner_name: input.owner_name,
+    email: input.email.toLowerCase(),
+    phone: input.phone,
+    address: input.address,
+    subscription_tier: input.subscription_tier || 'Starter',
+    status: 'Pending Approval',
+    property_limit: 3,
+    tenant_limit: 100,
+    user_limit: 10,
+    storage_limit: 10,
+    monthly_fee_estimate: input.monthly_fee_estimate ?? null,
+  };
+
+  const { data, error } = await supabase.from('organizations').insert(row).select('*').single();
 
   if (error) {
     console.error('[provisioning] org register', error);
-    return { success: false, error: 'Could not submit registration. Please check your details and try again.' };
+    return { success: false, error: friendlyError(error) };
   }
 
   const org = data as Organization;
@@ -58,9 +70,7 @@ export async function approveOrganisation(
     return { success: false, error: 'Service unavailable.' };
   }
 
-  const code =
-    opts.organization_code?.trim() ||
-    `ORG-${Date.now().toString().slice(-6)}`;
+  const code = opts.organization_code?.trim() || `ORG-${Date.now().toString().slice(-6)}`;
 
   const { data, error } = await supabase
     .from('organizations')
@@ -74,7 +84,7 @@ export async function approveOrganisation(
     .select('*')
     .single();
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: friendlyError(error) };
 
   const org = data as Organization;
   const idx = db.organizations.findIndex((o) => o.id === orgId);
@@ -85,8 +95,8 @@ export async function approveOrganisation(
 }
 
 /**
- * Create a staff / tenant user from the UI.
- * Creates Auth credentials (signUp) then public.users profile, restoring the admin session.
+ * Create staff/tenant: Auth account + public.users in one step.
+ * Restores the admin session after signUp so the creator stays signed in.
  */
 export async function createStaffUser(input: {
   organization_id: string;
@@ -105,11 +115,12 @@ export async function createStaffUser(input: {
     return { success: false, error: 'Password must be at least 8 characters.' };
   }
 
+  const email = input.email.trim().toLowerCase();
   const { data: sessionData } = await supabase.auth.getSession();
   const adminSession = sessionData.session;
 
   const { error: signUpErr } = await supabase.auth.signUp({
-    email: input.email.trim().toLowerCase(),
+    email,
     password: input.password,
     options: {
       data: {
@@ -120,12 +131,11 @@ export async function createStaffUser(input: {
     },
   });
 
-  if (signUpErr) {
-    // User may already exist in Auth — still try profile insert
+  if (signUpErr && !signUpErr.message.toLowerCase().includes('already')) {
     console.warn('[provisioning] signUp', signUpErr.message);
+    // Continue — profile insert may still work if Auth user exists
   }
 
-  // Restore admin session so we do not stay logged in as the new user
   if (adminSession) {
     await supabase.auth.setSession({
       access_token: adminSession.access_token,
@@ -139,7 +149,7 @@ export async function createStaffUser(input: {
       organization_id: input.organization_id,
       username: input.username.trim().toLowerCase(),
       name: input.name.trim(),
-      email: input.email.trim().toLowerCase(),
+      email,
       phone: input.phone || null,
       role: input.role,
       status: 'Active',
@@ -148,19 +158,47 @@ export async function createStaffUser(input: {
     .single();
 
   if (error) {
-    return {
-      success: false,
-      error:
-        error.message.includes('duplicate') || error.code === '23505'
-          ? 'A user with this email or username already exists.'
-          : 'Could not create user profile. Please try again.',
-    };
+    return { success: false, error: friendlyError(error) };
   }
 
   const user = data as User;
   db.users.push(user);
   db.saveToStorage();
   return { success: true, user };
+}
+
+export async function submitListingLead(input: {
+  property_name: string;
+  property_type: string;
+  location: string;
+  total_units?: string;
+  owner_name: string;
+  phone: string;
+  email: string;
+  notes?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, error: 'Service unavailable.' };
+  }
+
+  const { error } = await supabase.from('listing_leads').insert({
+    property_name: input.property_name,
+    property_type: input.property_type,
+    location: input.location,
+    total_units: input.total_units || null,
+    owner_name: input.owner_name,
+    phone: input.phone,
+    email: input.email.toLowerCase(),
+    notes: input.notes || null,
+    status: 'New',
+  });
+
+  if (error) {
+    // Table may not exist yet — fall back to local notification only
+    console.warn('[provisioning] listing lead', error.message);
+    return { success: false, error: friendlyError(error) };
+  }
+  return { success: true };
 }
 
 export async function createPropertyCenter(input: {
@@ -187,53 +225,11 @@ export async function createPropertyCenter(input: {
     .select('id')
     .single();
 
-  if (error) return { success: false, error: error.message };
-
+  if (error) return { success: false, error: friendlyError(error) };
   await db.tryHydrateFromSupabase?.();
   return { success: true, id: data.id as string };
 }
 
-export async function createCommercialUnit(input: {
-  organization_id: string;
-  property_id: string;
-  shopping_center_id?: string;
-  shop_number: string;
-  floor?: string;
-  size_sqm?: number;
-  monthly_rent?: number;
-  status?: string;
-  public_listing?: boolean;
-  description?: string;
-  images?: string[];
-}): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured || !supabase) {
-    return { success: false, error: 'Service unavailable.' };
-  }
-
-  const qr = `UW-${input.shop_number}-${Date.now().toString().slice(-4)}`;
-  const { error } = await supabase.from('shops').insert({
-    organization_id: input.organization_id,
-    property_id: input.property_id,
-    shopping_center_id: input.shopping_center_id || null,
-    shop_number: input.shop_number,
-    floor: input.floor || 'Ground',
-    size_sqm: input.size_sqm ?? 0,
-    monthly_rent: input.monthly_rent ?? 0,
-    deposit_amount: (input.monthly_rent ?? 0) * 2,
-    status: input.status || 'Available',
-    public_listing: input.public_listing ?? false,
-    public_featured: false,
-    qr_code: qr,
-    description: input.description || null,
-    images: input.images?.length ? input.images : null,
-  });
-
-  if (error) return { success: false, error: error.message };
-  await db.tryHydrateFromSupabase?.();
-  return { success: true };
-}
-
-/** Upload image/document to Storage; returns public URL or data URL fallback. */
 export async function uploadUserFile(
   file: File,
   folder: string
@@ -254,7 +250,6 @@ export async function uploadUserFile(
       const { data } = supabase.storage.from(bucket).getPublicUrl(path);
       return { success: true, url: data.publicUrl };
     }
-    // Fall through to data-URL if bucket missing
     console.warn('[upload]', error.message);
   }
 
