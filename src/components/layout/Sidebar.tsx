@@ -29,7 +29,6 @@ import {
   Wallet,
   FileBarChart,
   Brain,
-  Sparkles,
   Bell,
   Palette,
   HeartPulse,
@@ -58,6 +57,10 @@ type NavItem = {
   section?: string;
 };
 
+/**
+ * Client Admin = company structure, people, finance oversight, settings.
+ * Property Manager = day-to-day centre operations.
+ */
 export const Sidebar: React.FC<SidebarProps> = ({
   role = 'tenant',
   activeTab,
@@ -81,7 +84,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Account' },
         ];
 
-      // Property Manager = day-to-day centre operations
       case 'property_manager':
         return [
           { id: 'centre_pulse', label: 'Centre Pulse', icon: Activity, highlight: true, section: 'Home' },
@@ -89,13 +91,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'maintenance_ops', label: 'Maintenance Ops', icon: Wrench, section: 'Operations' },
           { id: 'preventive', label: 'Preventive PM', icon: Calendar, section: 'Operations' },
           { id: 'sla_config', label: 'SLA Matrix', icon: Shield, section: 'Operations' },
-          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban, section: 'Portfolio' },
-          { id: 'properties', label: 'Properties & Centers', icon: Building, section: 'Portfolio' },
-          { id: 'tenants_list', label: 'Tenants', icon: Users, section: 'Portfolio' },
+          { id: 'leasing_pipeline', label: 'Leasing Pipeline', icon: Kanban, section: 'Leasing' },
+          { id: 'tenants_list', label: 'Tenants', icon: Users, section: 'Leasing' },
+          { id: 'properties', label: 'Units on site', icon: Building, section: 'Site' },
           { id: 'staff_schedule', label: 'Roster & Shifts', icon: Calendar, section: 'Team' },
           { id: 'vendors', label: 'Vendors', icon: Truck, section: 'Team' },
-          { id: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Team' },
           { id: 'messages', label: 'Messages', icon: MessageSquare, section: 'Team' },
+          { id: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Team' },
           { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Team' },
           { id: 'rent_roll_arrears', label: 'Rent Roll (view)', icon: DollarSign, section: 'Finance' },
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart, section: 'Finance' },
@@ -120,25 +122,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'financial_requests', label: 'Petty Cash & Requests', icon: CreditCard, section: 'Finance' },
           { id: 'finance_documents', label: 'Documents & Sage', icon: FileText, section: 'Finance' },
           { id: 'analytics_reports', label: 'Financial Reports', icon: BarChart3, section: 'Finance' },
-          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Insights' },
+          { id: 'notifications', label: 'Notifications', icon: Bell, section: 'General' },
         ];
 
-      // Client Admin = company executive (oversight, people, structure — not day-to-day ops)
       case 'admin':
         return [
           { id: 'centre_pulse', label: 'Portfolio Overview', icon: Activity, highlight: true, section: 'Home' },
-          { id: 'portfolio_intelligence', label: 'Intelligence', icon: Brain, section: 'Home' },
-          { id: 'properties', label: 'Properties & Units', icon: Building, section: 'Portfolio' },
+          { id: 'properties', label: 'Centres, Properties & Units', icon: Building, section: 'Portfolio' },
           { id: 'tenants_list', label: 'Tenants Directory', icon: Users, section: 'Portfolio' },
-          { id: 'org_users', label: 'Staff & Roles', icon: Users, section: 'Portfolio' },
+          { id: 'org_users', label: 'Staff & Roles', icon: Users, section: 'People' },
           { id: 'manager_tickets', label: 'Ticket Escalations', icon: Ticket, section: 'Oversight' },
           { id: 'rent_roll_arrears', label: 'Rent Roll & Arrears', icon: DollarSign, section: 'Finance' },
           { id: 'deposits', label: 'Deposits', icon: Wallet, section: 'Finance' },
           { id: 'board_pack', label: 'Board Pack', icon: FileBarChart, section: 'Finance' },
           { id: 'announcements', label: 'Company Announcements', icon: Megaphone, section: 'Company' },
           { id: 'notifications', label: 'Notifications', icon: Bell, section: 'Company' },
-          { id: 'compliance_audit', label: 'Compliance Audit', icon: History, section: 'Settings' },
           { id: 'org_settings', label: 'Branding & Settings', icon: Settings, section: 'Settings' },
+          { id: 'compliance_audit', label: 'Compliance Audit', icon: History, section: 'Settings' },
           { id: 'white_label', label: 'White-label', icon: Palette, section: 'Settings' },
         ];
 
