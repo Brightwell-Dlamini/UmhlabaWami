@@ -10,7 +10,6 @@ import { ManagerDashboard } from './components/dashboard/ManagerDashboard';
 import { MaintenancePortal } from './components/dashboard/MaintenancePortal';
 import { FinancePortal } from './components/dashboard/FinancePortal';
 import { SuperAdminPortal } from './components/dashboard/SuperAdminPortal';
-import { BroadcastModal } from './components/dashboard/BroadcastModal';
 import { UnitsDirectoryView } from './components/management/UnitsDirectoryView';
 import { TicketsListView } from './components/dashboard/TicketsListView';
 import { TenantsListView } from './components/dashboard/TenantsListView';
@@ -28,7 +27,6 @@ import { LeasingPipelineView } from './components/dashboard/LeasingPipelineView'
 import { DepositLedgerView } from './components/dashboard/DepositLedgerView';
 import { BoardPackView } from './components/dashboard/BoardPackView';
 import { SubscriptionBillingView } from './components/dashboard/SubscriptionBillingView';
-import { WhiteLabelView } from './components/dashboard/WhiteLabelView';
 import { ComplianceAuditView } from './components/dashboard/ComplianceAuditView';
 import { NotificationCentreView } from './components/dashboard/NotificationCentreView';
 import { PlatformHealthView } from './components/dashboard/PlatformHealthView';
@@ -124,7 +122,7 @@ export default function App() {
     if (tab === 'manager_tickets' || tab === 'tenant_tickets')
       return (
         <TicketsListView
-          onOpenTicket={(id) => setSelectedTicketId(id)}
+          onViewTicket={(id) => setSelectedTicketId(id)}
           onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
         />
       );
@@ -145,7 +143,7 @@ export default function App() {
     if (role === 'tenant')
       return <TenantDashboard onOpenCreateTicket={() => setIsCreateTicketOpen(true)} />;
     if (role === 'maintenance')
-      return <MaintenancePortal onOpenTicket={(id) => setSelectedTicketId(id)} />;
+      return <MaintenancePortal onOpenTicket={(id: string) => setSelectedTicketId(id)} />;
     if (role === 'finance') return <FinancePortal />;
     return (
       <ManagerDashboard
@@ -185,8 +183,8 @@ export default function App() {
         <RegisterOrgModal isOpen={isRegisterOrgOpen} onClose={() => setIsRegisterOrgOpen(false)} />
         <ListPropertyLeadModal isOpen={isListLeadOpen} onClose={() => setIsListLeadOpen(false)} />
         <PropertyDetailModal
-          property={selectedProperty}
           shop={selectedShop}
+          property={selectedProperty}
           onClose={() => {
             setSelectedProperty(null);
             setSelectedShop(null);
@@ -195,6 +193,7 @@ export default function App() {
             setEnquiryProperty(selectedProperty);
             setEnquiryShop(selectedShop);
             setSelectedProperty(null);
+            setSelectedShop(null);
           }}
         />
         <PropertyEnquiryModal
