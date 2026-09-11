@@ -1,29 +1,37 @@
 # Client Admin vs Property Manager
 
-## Decision (implemented in the product)
+## Rule of thumb
 
-| | **Organisation Admin (Client Admin)** | **Property Manager** |
-|---|----------------------------------------|----------------------|
-| **Job** | Company owner / executive. Runs the **business**. | Site operator. Runs the **centre day-to-day**. |
-| **Focus** | People, portfolio structure, oversight, settings | Tickets, maintenance, tenants on site, leasing ops |
-| **Centres** | All centres in the organisation | Assigned centre(s) / properties |
+| Role | Owns |
+|------|------|
+| **Client Admin** | The **company**: centres, properties, units structure, staff, finance oversight, settings |
+| **Property Manager** | The **site day-to-day**: tickets, maintenance, roster, vendors, leasing ops, tenant ops |
 
-### Client Admin owns
-- Staff & roles (hire PM, finance, maintenance, tenants logins)
-- Properties & units structure (portfolio setup)
-- Tenants directory (company-wide)
-- Escalated ticket oversight
-- Finance oversight (rent roll, deposits, board pack)
-- Company announcements, branding, compliance
+## Hierarchy reminder
 
-### Property Manager owns
-- Centre Pulse (live ops)
-- Tickets & SLAs (primary owner)
-- Maintenance ops & preventive schedules
-- SLA matrix configuration for the site
-- Day-to-day tenants & leasing pipeline
-- Staff rostering and vendors for the site
-- Site announcements & ops chat
+```
+Organisation (Client Admin's company)
+  └── Centre (shopping centre / site)     ← Admin creates
+        └── Property (building / block)  ← Admin creates
+              └── Unit (shop / office / land) ← Admin creates; PM can manage availability
+                    └── Tenant
+```
 
-### Why Admin no longer has “ops-heavy” menu items
-Those jobs are **Property Manager work**. Admin still **sees** escalations and finance so they stay in control without doing the PM’s job.
+## Client Admin menu
+
+- Portfolio Overview
+- **Centres, Properties & Units** (create structure)
+- Tenants Directory
+- Staff & Roles
+- Ticket Escalations (oversight)
+- Rent Roll, Deposits, Board Pack
+- Company Announcements, Settings
+
+## Property Manager menu
+
+- Centre Pulse
+- Tickets & SLAs, Maintenance, Preventive, SLA Matrix
+- Leasing Pipeline, Tenants
+- Properties & Units (**operate** units — not create the whole portfolio)
+- Roster, Vendors, Messages
+- Rent Roll (view), Board Pack
