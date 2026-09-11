@@ -12,15 +12,12 @@ import { FinancePortal } from './components/dashboard/FinancePortal';
 import { SuperAdminPortal } from './components/dashboard/SuperAdminPortal';
 import { BroadcastModal } from './components/dashboard/BroadcastModal';
 import { UnitsDirectoryView } from './components/management/UnitsDirectoryView';
-import { LeaseManagementView } from './components/management/LeaseManagementView';
 import { TicketsListView } from './components/dashboard/TicketsListView';
 import { TenantsListView } from './components/dashboard/TenantsListView';
 import { StaffScheduleView } from './components/dashboard/StaffScheduleView';
 import { VendorsView } from './components/dashboard/VendorsView';
 import { AnnouncementsView } from './components/dashboard/AnnouncementsView';
 import { MessagesView } from './components/dashboard/MessagesView';
-import { AnalyticsReportsView } from './components/dashboard/AnalyticsReportsView';
-import { TenantDocumentsView } from './components/dashboard/TenantDocumentsView';
 import { OrgUsersView } from './components/dashboard/OrgUsersView';
 import { OrgSettingsView } from './components/dashboard/OrgSettingsView';
 import { CentrePulseView } from './components/dashboard/CentrePulseView';
@@ -31,14 +28,10 @@ import { LeasingPipelineView } from './components/dashboard/LeasingPipelineView'
 import { DepositLedgerView } from './components/dashboard/DepositLedgerView';
 import { BoardPackView } from './components/dashboard/BoardPackView';
 import { SubscriptionBillingView } from './components/dashboard/SubscriptionBillingView';
-import { PortfolioIntelligenceView } from './components/dashboard/PortfolioIntelligenceView';
-import { AiAssistView } from './components/dashboard/AiAssistView';
+import { WhiteLabelView } from './components/dashboard/WhiteLabelView';
 import { ComplianceAuditView } from './components/dashboard/ComplianceAuditView';
 import { NotificationCentreView } from './components/dashboard/NotificationCentreView';
-import { PartnerApiView } from './components/dashboard/PartnerApiView';
-import { WhiteLabelView } from './components/dashboard/WhiteLabelView';
 import { PlatformHealthView } from './components/dashboard/PlatformHealthView';
-import { Phase7ElevateView } from './components/dashboard/Phase7ElevateView';
 import { OfflineBanner } from './components/system/OfflineBanner';
 import { CreateTicketWizard } from './components/tickets/CreateTicketWizard';
 import { TicketDetailModal } from './components/tickets/TicketDetailModal';
@@ -48,10 +41,8 @@ import { ListPropertyLeadModal } from './components/marketplace/ListPropertyLead
 import { LoginModal } from './components/auth/LoginModal';
 import { RegisterOrgModal } from './components/auth/RegisterOrgModal';
 import { auth } from './services/auth';
-import { db } from './services/db';
-import { branding } from './services/brandingService';
 import { Property, Shop, UserRole } from './types';
-import { CheckCircle2, Radio } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(auth.getCurrentUser());
@@ -75,15 +66,12 @@ export default function App() {
   const [enquiryProperty, setEnquiryProperty] = useState<Property | null>(null);
   const [enquiryShop, setEnquiryShop] = useState<Shop | null>(null);
   const [isListLeadOpen, setIsListLeadOpen] = useState(false);
-  const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
   const [toast, setToast] = useState<{ title: string; message: string } | null>(null);
   const [legalPage, setLegalPage] = useState<LegalPageId | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
-    const unsub = auth.subscribe(() => {
-      setCurrentUser(auth.getCurrentUser());
-    });
-    return () => unsub();
+    return auth.subscribe(() => setCurrentUser(auth.getCurrentUser()));
   }, []);
 
   useEffect(() => {
@@ -113,19 +101,71 @@ export default function App() {
     setSidebarActiveTab('overview');
   };
 
-  // Note: full dashboard routing preserved in follow-up if truncated — core shell below
+  const onTabChange = (tab: string) => {
+    if (tab === 'report_issue') {
+      setIsCreateTicketOpen(true);
+      return;
+    }
+    setSidebarActiveTab(tab);
+  };
+
+  const renderDashboardBody = () => {
+    if (!currentUser) return null;
+    const role = currentUser.role as UserRole;
+    const tab = sidebarActiveTab;
+
+    if (role === 'super_admin') return <SuperAdminPortal initialTab={tab} />;
+    if (tab === 'properties') return <UnitsDirectoryView />;
+    if (tab === 'tenants_list')
+      return <TenantsListView onOpenCreateTicketForShop={() => setIsCreateTicketOpen(true)} />;
+    if (tab === 'org_users') return <OrgUsersView />;
+    if (tab === 'announcements') return <AnnouncementsView />;
+    if (tab === 'org_settings' || tab === 'white_label') return <OrgSettingsView />;
+    if (tab === 'manager_tickets' || tab === 'tenant_tickets')
+      return (
+        <TicketsListView
+          onOpenTicket={(id) => setSelectedTicketId(id)}
+          onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
+        />
+      );
+    if (tab === 'centre_pulse') return <CentrePulseView />;
+    if (tab === 'rent_roll_arrears') return <RentRollArrearsView />;
+    if (tab === 'deposits') return <DepositLedgerView />;
+    if (tab === 'board_pack') return <BoardPackView />;
+    if (tab === 'staff_schedule') return <StaffScheduleView />;
+    if (tab === 'vendors') return <VendorsView />;
+    if (tab === 'messages') return <MessagesView />;
+    if (tab === 'notifications') return <NotificationCentreView />;
+    if (tab === 'sla_config') return <SlaConfigView />;
+    if (tab === 'preventive' || tab === 'maintenance_ops') return <PreventiveMaintenanceView />;
+    if (tab === 'leasing_pipeline') return <LeasingPipelineView />;
+    if (tab === 'compliance_audit') return <ComplianceAuditView />;
+    if (tab === 'subscription_billing') return <SubscriptionBillingView />;
+    if (tab === 'platform_health' || tab === 'db_backup') return <PlatformHealthView />;
+    if (role === 'tenant')
+      return <TenantDashboard onOpenCreateTicket={() => setIsCreateTicketOpen(true)} />;
+    if (role === 'maintenance')
+      return <MaintenancePortal onOpenTicket={(id) => setSelectedTicketId(id)} />;
+    if (role === 'finance') return <FinancePortal />;
+    return (
+      <ManagerDashboard
+        onViewTicket={(id) => setSelectedTicketId(id)}
+        onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
+      />
+    );
+  };
+
   if (viewMode === 'marketplace' || !currentUser) {
     return (
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
         <Navbar
           onOpenLogin={() => setIsLoginOpen(true)}
-          onOpenRegister={() => setIsRegisterOrgOpen(true)}
+          onOpenRegisterOrg={() => setIsRegisterOrgOpen(true)}
+          onOpenListLead={() => setIsListLeadOpen(true)}
           isDarkMode={isDarkMode}
-          onToggleDark={() => setIsDarkMode((d) => !d)}
-          currentUser={currentUser}
-          onLogout={() => void handleLogout()}
-          onOpenDashboard={() => setViewMode('dashboard')}
-          onOpenListProperty={() => setIsListLeadOpen(true)}
+          onToggleDarkMode={() => setIsDarkMode((d) => !d)}
+          viewMode="marketplace"
+          onSwitchViewMode={setViewMode}
         />
         <main className="flex-1">
           <MarketplaceView
@@ -178,109 +218,44 @@ export default function App() {
     );
   }
 
-  // Dashboard shell — import full routing from AppDashboard if needed
-  return <AppDashboardShell
-    currentUser={currentUser}
-    sidebarActiveTab={sidebarActiveTab}
-    setSidebarActiveTab={setSidebarActiveTab}
-    isDarkMode={isDarkMode}
-    setIsDarkMode={setIsDarkMode}
-    onLogout={() => void handleLogout()}
-    legalPage={legalPage}
-    setLegalPage={setLegalPage}
-    isCreateTicketOpen={isCreateTicketOpen}
-    setIsCreateTicketOpen={setIsCreateTicketOpen}
-    selectedTicketId={selectedTicketId}
-    setSelectedTicketId={setSelectedTicketId}
-    isBroadcastOpen={isBroadcastOpen}
-    setIsBroadcastOpen={setIsBroadcastOpen}
-    toast={toast}
-    showToast={showToast}
-  />;
-}
-
-/** Temporary bridge: keep previous dashboard behaviour by lazy loading full implementation file content from prior commit patterns. */
-function AppDashboardShell(props: any) {
-  // Re-use existing large dashboard by dynamic require of tabs — inline essential portal switch
-  const role = props.currentUser.role as UserRole;
-  const [collapsed, setCollapsed] = useState(false);
   const org = auth.getCurrentOrganization();
-
-  const onTabChange = (tab: string) => {
-    if (tab === 'report_issue') {
-      props.setIsCreateTicketOpen(true);
-      return;
-    }
-    props.setSidebarActiveTab(tab);
-  };
-
-  let body: React.ReactNode = null;
-  const tab = props.sidebarActiveTab;
-
-  if (role === 'super_admin' || tab.startsWith('super_') || tab === 'subscription_billing' || tab === 'analytics_reports' && role === 'super_admin') {
-    body = <SuperAdminPortal activeTab={tab} onTabChange={onTabChange} />;
-  } else if (tab === 'properties') body = <UnitsDirectoryView />;
-  else if (tab === 'tenants_list') body = <TenantsListView onOpenCreateTicketForShop={() => props.setIsCreateTicketOpen(true)} />;
-  else if (tab === 'org_users') body = <OrgUsersView />;
-  else if (tab === 'announcements') body = <AnnouncementsView />;
-  else if (tab === 'org_settings') body = <OrgSettingsView />;
-  else if (tab === 'manager_tickets' || tab === 'tenant_tickets') body = <TicketsListView onOpenTicket={(id) => props.setSelectedTicketId(id)} onOpenCreateTicket={() => props.setIsCreateTicketOpen(true)} />;
-  else if (tab === 'centre_pulse') body = <CentrePulseView />;
-  else if (tab === 'rent_roll_arrears') body = <RentRollArrearsView />;
-  else if (tab === 'deposits') body = <DepositLedgerView />;
-  else if (tab === 'board_pack') body = <BoardPackView />;
-  else if (tab === 'staff_schedule') body = <StaffScheduleView />;
-  else if (tab === 'vendors') body = <VendorsView />;
-  else if (tab === 'messages') body = <MessagesView />;
-  else if (tab === 'notifications') body = <NotificationCentreView />;
-  else if (tab === 'sla_config') body = <SlaConfigView />;
-  else if (tab === 'preventive') body = <PreventiveMaintenanceView />;
-  else if (tab === 'leasing_pipeline') body = <LeasingPipelineView />;
-  else if (tab === 'white_label') body = <WhiteLabelView />;
-  else if (tab === 'compliance_audit') body = <ComplianceAuditView />;
-  else if (tab === 'portfolio_intelligence') body = <PortfolioIntelligenceView />;
-  else if (role === 'tenant') body = <TenantDashboard onOpenCreateTicket={() => props.setIsCreateTicketOpen(true)} />;
-  else if (role === 'maintenance') body = <MaintenancePortal onOpenTicket={(id) => props.setSelectedTicketId(id)} />;
-  else if (role === 'finance') body = <FinancePortal />;
-  else if (role === 'property_manager') body = <ManagerDashboard onOpenCreateTicket={() => props.setIsCreateTicketOpen(true)} onOpenTicket={(id) => props.setSelectedTicketId(id)} />;
-  else body = <ManagerDashboard onOpenCreateTicket={() => props.setIsCreateTicketOpen(true)} onOpenTicket={(id) => props.setSelectedTicketId(id)} />;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
       <Navbar
-        onOpenLogin={() => {}}
-        isDarkMode={props.isDarkMode}
-        onToggleDark={() => props.setIsDarkMode((d: boolean) => !d)}
-        currentUser={props.currentUser}
-        onLogout={props.onLogout}
-        onOpenDashboard={() => {}}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode((d) => !d)}
+        viewMode="dashboard"
+        onSwitchViewMode={setViewMode}
+        onOpenLogin={() => setIsLoginOpen(true)}
       />
       <div className="flex flex-1 min-h-0">
         <Sidebar
-          role={role}
-          activeTab={tab}
+          role={currentUser.role}
+          activeTab={sidebarActiveTab}
           onTabChange={onTabChange}
-          collapsed={collapsed}
-          onToggleCollapse={() => setCollapsed((c) => !c)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
           organizationName={org?.company_name}
           orgCode={org?.organization_code}
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{body}</main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{renderDashboardBody()}</main>
       </div>
-      <MobileBottomNav role={role} activeTab={tab} onTabChange={onTabChange} />
-      <Footer onOpenLegal={props.setLegalPage} />
-      {props.legalPage && <LegalDocumentPage page={props.legalPage} onClose={() => props.setLegalPage(null)} />}
+      <MobileBottomNav role={currentUser.role} activeTab={sidebarActiveTab} onTabChange={onTabChange} />
+      <Footer onOpenLegal={setLegalPage} />
+      {legalPage && <LegalDocumentPage page={legalPage} onClose={() => setLegalPage(null)} />}
       <CreateTicketWizard
-        isOpen={props.isCreateTicketOpen}
-        onClose={() => props.setIsCreateTicketOpen(false)}
-        onSuccess={(n) => props.showToast('Ticket Dispatched!', `Ticket #${n} created with active SLA countdown.`)}
+        isOpen={isCreateTicketOpen}
+        onClose={() => setIsCreateTicketOpen(false)}
+        onSuccess={(n) =>
+          showToast('Ticket Dispatched!', `Ticket #${n} created with active SLA countdown.`)
+        }
       />
-      <TicketDetailModal ticketId={props.selectedTicketId} onClose={() => props.setSelectedTicketId(null)} />
-      <BroadcastModal isOpen={props.isBroadcastOpen} onClose={() => props.setIsBroadcastOpen(false)} />
-      {props.toast && (
+      <TicketDetailModal ticketId={selectedTicketId} onClose={() => setSelectedTicketId(null)} />
+      {toast && (
         <div className="fixed bottom-4 right-4 z-[90] p-4 rounded-xl bg-slate-900 text-white shadow-xl max-w-sm">
-          <div className="font-bold text-sm">{props.toast.title}</div>
-          <p className="text-xs text-slate-300 mt-1">{props.toast.message}</p>
+          <div className="font-bold text-sm">{toast.title}</div>
+          <p className="text-xs text-slate-300 mt-1">{toast.message}</p>
         </div>
       )}
       <OfflineBanner />
