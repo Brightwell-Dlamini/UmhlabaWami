@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   ShieldCheck,
   Clock,
@@ -6,6 +6,8 @@ import {
   DollarSign,
   Search,
   Building2,
+  MapPin,
+  Filter,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import type { Property, Shop } from '../../types';
@@ -14,16 +16,25 @@ import { PropertyCard } from './PropertyCard';
 interface MarketplaceViewProps {
   onSelectProperty?: (property: Property, shop?: Shop) => void;
   onEnquire?: (property: Property, shop?: Shop) => void;
+  onOpenListLead?: () => void;
+  onManageClick?: () => void;
 }
 
 export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   onSelectProperty,
   onEnquire,
+  onOpenListLead,
+  onManageClick,
 }) => {
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState('all');
+  const [, setTick] = useState(0);
 
-  const shops = useMemo(() => db.shops.filter((s) => s.public_listing !== false), []);
+  useEffect(() => {
+    return db.subscribe(() => setTick((t) => t + 1));
+  }, []);
+
+  const shops = useMemo(() => db.shops.filter((s) => s.public_listing !== false), [db.shops.length]);
   const centres = db.shoppingCenters;
 
   const filtered = shops.filter((s) => {
@@ -44,38 +55,83 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   return (
     <div className="space-y-10 pb-16">
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
           <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-3">
             Kingdom of Eswatini
           </p>
           <h1 className="text-3xl sm:text-5xl font-bold tracking-tight max-w-2xl leading-tight">
-            Commercial space & facilities, managed properly.
+            Manage Better. Respond Faster. Know More.
           </h1>
           <p className="mt-4 text-slate-300 max-w-xl text-sm sm:text-base">
-            Find verified vacancies, run maintenance SLAs, and operate your portfolio on one platform.
+            The complete commercial property management and vacancy listing platform for Eswatini.
           </p>
-          <div className="mt-8">
+          <div className="mt-8 flex flex-wrap gap-3">
             <a
               href="#explore-spaces"
-              className="inline-block px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
             >
               Explore spaces
             </a>
+            {onOpenListLead && (
+              <button
+                type="button"
+                onClick={onOpenListLead}
+                className="px-5 py-2.5 rounded-xl border border-white/30 hover:bg-white/10 text-sm font-semibold"
+              >
+                List a property
+              </button>
+            )}
+            {onManageClick && (
+              <button
+                type="button"
+                onClick={onManageClick}
+                className="px-5 py-2.5 rounded-xl border border-white/30 hover:bg-white/10 text-sm font-semibold"
+              >
+                Open dashboard
+              </button>
+            )}
           </div>
         </div>
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <Metric icon={ShieldCheck} color="blue" title="100% Verified" sub="Commercial retail hubs" />
-          <Metric icon={Clock} color="amber" title="On-time leasing" sub="Vacancy-to-lease discipline" />
-          <Metric icon={TrendingUp} color="emerald" title="Real-Time Sync" sub="Live vacancy updates" />
-          <Metric
-            icon={DollarSign}
-            color="purple"
-            title="Integrated Billing"
-            sub="External software supported"
-          />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">100% Verified</div>
+              <div className="text-[11px] text-slate-500">Commercial retail hubs</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">On-time leasing</div>
+              <div className="text-[11px] text-slate-500">Vacancy-to-lease discipline</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Real-Time Sync</div>
+              <div className="text-[11px] text-slate-500">Live vacancy updates</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center shrink-0">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Integrated Billing</div>
+              <div className="text-[11px] text-slate-500">External software supported</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -163,7 +219,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
         )}
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section id="how-it-works" className="max-w-7xl mx-auto px-4 sm:px-6 scroll-mt-24">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 grid md:grid-cols-3 gap-6 text-xs">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white mb-1">On-time leasing</h3>
@@ -182,33 +238,3 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
     </div>
   );
 };
-
-function Metric({
-  icon: Icon,
-  color,
-  title,
-  sub,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  title: string;
-  sub: string;
-}) {
-  const bg: Record<string, string> = {
-    blue: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600',
-    amber: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600',
-    emerald: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600',
-    purple: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600',
-  };
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bg[color]}`}>
-        <Icon className="w-5 h-5" />
-      </div>
-      <div>
-        <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{title}</div>
-        <div className="text-[11px] text-slate-500">{sub}</div>
-      </div>
-    </div>
-  );
-}
