@@ -5,7 +5,6 @@ import {
   TrendingUp,
   DollarSign,
   Search,
-  MapPin,
   Building2,
 } from 'lucide-react';
 import { db } from '../../services/db';
@@ -24,16 +23,18 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState('all');
 
-  const shops = useMemo(() => {
-    return db.shops.filter((s) => s.public_listing !== false);
-  }, [db.shops]);
-
+  const shops = useMemo(() => db.shops.filter((s) => s.public_listing !== false), []);
   const centres = db.shoppingCenters;
 
   const filtered = shops.filter((s) => {
     const centre = centres.find((c) => c.id === s.shopping_center_id);
     if (location !== 'all' && centre?.location !== location) return false;
-    if (search && !`${s.shop_number} ${s.description} ${centre?.name || ''}`.toLowerCase().includes(search.toLowerCase()))
+    if (
+      search &&
+      !`${s.shop_number} ${s.description} ${centre?.name || ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    )
       return false;
     return true;
   });
@@ -53,10 +54,10 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
           <p className="mt-4 text-slate-300 max-w-xl text-sm sm:text-base">
             Find verified vacancies, run maintenance SLAs, and operate your portfolio on one platform.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8">
             <a
               href="#explore-spaces"
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
+              className="inline-block px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-semibold"
             >
               Explore spaces
             </a>
@@ -66,42 +67,15 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">100% Verified</div>
-              <div className="text-[11px] text-slate-500">Commercial retail hubs</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">On-time leasing</div>
-              <div className="text-[11px] text-slate-500">Vacancy-to-lease discipline</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Real-Time Sync</div>
-              <div className="text-[11px] text-slate-500">Live vacancy updates</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center shrink-0">
-              <DollarSign className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Integrated Billing</div>
-              <div className="text-[11px] text-slate-500">External software supported</div>
-            </div>
-          </div>
+          <Metric icon={ShieldCheck} color="blue" title="100% Verified" sub="Commercial retail hubs" />
+          <Metric icon={Clock} color="amber" title="On-time leasing" sub="Vacancy-to-lease discipline" />
+          <Metric icon={TrendingUp} color="emerald" title="Real-Time Sync" sub="Live vacancy updates" />
+          <Metric
+            icon={DollarSign}
+            color="purple"
+            title="Integrated Billing"
+            sub="External software supported"
+          />
         </div>
       </section>
 
@@ -140,25 +114,44 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((shop) => {
-            const property =
-              db.properties.find((p) => p.id === shop.property_id) ||
-              ({
-                id: shop.property_id,
-                organization_id: shop.organization_id,
-                shopping_center_id: shop.shopping_center_id,
-                name: `Unit ${shop.shop_number}`,
-                type: shop.property_type || 'Commercial unit',
-                address: '',
-                description: shop.description,
-                status: 'Active',
-              } as Property);
+            const property = db.properties.find((p) => p.id === shop.property_id);
+            const centre = centres.find((c) => c.id === shop.shopping_center_id);
             return (
               <PropertyCard
                 key={shop.id}
-                property={property}
                 shop={shop}
-                onSelect={() => onSelectProperty?.(property, shop)}
-                onEnquire={() => onEnquire?.(property, shop)}
+                property={property}
+                shoppingCenter={centre}
+                onViewDetails={() => {
+                  const p =
+                    property ||
+                    ({
+                      id: shop.property_id,
+                      organization_id: shop.organization_id,
+                      shopping_center_id: shop.shopping_center_id,
+                      name: `Unit ${shop.shop_number}`,
+                      type: shop.property_type || 'Commercial unit',
+                      address: '',
+                      description: shop.description,
+                      status: 'Active',
+                    } as Property);
+                  onSelectProperty?.(p, shop);
+                }}
+                onEnquire={() => {
+                  const p =
+                    property ||
+                    ({
+                      id: shop.property_id,
+                      organization_id: shop.organization_id,
+                      shopping_center_id: shop.shopping_center_id,
+                      name: `Unit ${shop.shop_number}`,
+                      type: shop.property_type || 'Commercial unit',
+                      address: '',
+                      description: shop.description,
+                      status: 'Active',
+                    } as Property);
+                  onEnquire?.(p, shop);
+                }}
               />
             );
           })}
@@ -189,3 +182,33 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
     </div>
   );
 };
+
+function Metric({
+  icon: Icon,
+  color,
+  title,
+  sub,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  title: string;
+  sub: string;
+}) {
+  const bg: Record<string, string> = {
+    blue: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600',
+    amber: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600',
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600',
+    purple: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600',
+  };
+  return (
+    <div className="flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bg[color]}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{title}</div>
+        <div className="text-[11px] text-slate-500">{sub}</div>
+      </div>
+    </div>
+  );
+}
