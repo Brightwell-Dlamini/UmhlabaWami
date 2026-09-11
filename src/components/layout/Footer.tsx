@@ -1,12 +1,22 @@
 import React from 'react';
-import { Building2, Phone, Mail, MapPin, ShieldCheck, Heart } from 'lucide-react';
+import { Building2, Phone, Mail, MapPin, ShieldCheck } from 'lucide-react';
 
-export const Footer: React.FC = () => {
+export type LegalPageId = 'terms' | 'privacy' | 'sla' | 'rent';
+
+interface FooterProps {
+  onOpenLegal?: (page: LegalPageId) => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
+  const open = (page: LegalPageId) => {
+    if (onOpenLegal) onOpenLegal(page);
+    else window.location.hash = `legal/${page}`;
+  };
+
   return (
     <footer className="bg-slate-900 text-slate-400 text-xs border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
-          {/* Col 1: Branding */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
@@ -15,7 +25,8 @@ export const Footer: React.FC = () => {
               <span className="text-base font-bold text-white font-display">Umhlaba Wami</span>
             </div>
             <p className="text-slate-400 leading-relaxed">
-              Manage Better. Respond Faster. Know More. The complete commercial property management and vacancy listing platform for the Kingdom of Eswatini.
+              Manage Better. Respond Faster. Know More. Commercial property management and vacancy
+              listing for the Kingdom of Eswatini.
             </p>
             <div className="flex items-center gap-1.5 text-emerald-400 font-semibold text-[11px]">
               <ShieldCheck className="w-4 h-4" />
@@ -23,35 +34,17 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Col 2: Marketplace */}
           <div className="space-y-3">
-            <h4 className="font-bold text-white text-xs uppercase tracking-wider">
-              Vacant Spaces
-            </h4>
+            <h4 className="font-bold text-white text-xs uppercase tracking-wider">Platform</h4>
             <ul className="space-y-2">
-              <li><span className="hover:text-white cursor-pointer">The Gables Shopping Centre (Ezulwini)</span></li>
-              <li><span className="hover:text-white cursor-pointer">Mbabane Commercial Tower</span></li>
-              <li><span className="hover:text-white cursor-pointer">Matsapha Logistics Hub</span></li>
-              <li><span className="hover:text-white cursor-pointer">Manzini Mall Retail Units</span></li>
-              <li><span className="hover:text-white cursor-pointer">Commercial Offices & Suites</span></li>
+              <li>Tenant maintenance desk</li>
+              <li>Commercial leases & renewals</li>
+              <li>Rent roll & integrated billing</li>
+              <li>External software supported</li>
+              <li>Storefront QR placards</li>
             </ul>
           </div>
 
-          {/* Col 3: Operations & Portal */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-white text-xs uppercase tracking-wider">
-              Management Platform
-            </h4>
-            <ul className="space-y-2">
-              <li><span className="hover:text-white cursor-pointer">Tenant Maintenance Desk</span></li>
-              <li><span className="hover:text-white cursor-pointer">SLA Response Tower (15-min Emergency)</span></li>
-              <li><span className="hover:text-white cursor-pointer">Commercial Leases & Renewals</span></li>
-              <li><span className="hover:text-white cursor-pointer">Rent Roll & Sage Export</span></li>
-              <li><span className="hover:text-white cursor-pointer">Storefront QR Placard Generator</span></li>
-            </ul>
-          </div>
-
-          {/* Col 4: Eswatini Contact */}
           <div className="space-y-3">
             <h4 className="font-bold text-white text-xs uppercase tracking-wider">
               Kingdom of Eswatini HQ
@@ -73,16 +66,40 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Bar */}
         <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
           <div>
-            © {new Date().getFullYear()} Umhlaba Wami Technologies (Pty) Ltd. All rights reserved. Eswatini Company Reg. #R7/58291.
+            © {new Date().getFullYear()} Umhlaba Wami Technologies (Pty) Ltd. All rights reserved.
+            Eswatini Company Reg. #R7/58291.
           </div>
-          <div className="flex items-center gap-4">
-            <span className="hover:text-slate-400 cursor-pointer">Commercial Terms</span>
-            <span className="hover:text-slate-400 cursor-pointer">Privacy Policy</span>
-            <span className="hover:text-slate-400 cursor-pointer">SLA Guarantee</span>
-            <span className="hover:text-slate-400 cursor-pointer">Eswatini Rent Regulations</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <button
+              type="button"
+              onClick={() => open('terms')}
+              className="hover:text-white underline-offset-2 hover:underline"
+            >
+              Commercial Terms
+            </button>
+            <button
+              type="button"
+              onClick={() => open('privacy')}
+              className="hover:text-white underline-offset-2 hover:underline"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => open('sla')}
+              className="hover:text-white underline-offset-2 hover:underline"
+            >
+              SLA Guarantee
+            </button>
+            <button
+              type="button"
+              onClick={() => open('rent')}
+              className="hover:text-white underline-offset-2 hover:underline"
+            >
+              Eswatini Rent Regulations
+            </button>
           </div>
         </div>
       </div>
