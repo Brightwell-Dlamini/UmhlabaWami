@@ -86,18 +86,10 @@ export default function App() {
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      try {
-        localStorage.setItem('umhlaba_dark', '1');
-      } catch {
-        /* ignore */
-      }
+      try { localStorage.setItem('umhlaba_dark', '1'); } catch { /* ignore */ }
     } else {
       document.documentElement.classList.remove('dark');
-      try {
-        localStorage.setItem('umhlaba_dark', '0');
-      } catch {
-        /* ignore */
-      }
+      try { localStorage.setItem('umhlaba_dark', '0'); } catch { /* ignore */ }
     }
   }, [isDarkMode]);
 
@@ -119,20 +111,13 @@ export default function App() {
 
   const getDefaultTabForRole = (role?: UserRole): string => {
     switch (role) {
-      case 'tenant':
-        return 'tenant_overview';
-      case 'property_manager':
-        return 'centre_pulse';
-      case 'maintenance':
-        return 'maintenance_jobs';
-      case 'finance':
-        return 'rent_roll_arrears';
-      case 'admin':
-        return 'centre_pulse';
-      case 'super_admin':
-        return 'super_overview';
-      default:
-        return 'overview';
+      case 'tenant': return 'tenant_overview';
+      case 'property_manager': return 'centre_pulse';
+      case 'maintenance': return 'maintenance_jobs';
+      case 'finance': return 'rent_roll_arrears';
+      case 'admin': return 'centre_pulse';
+      case 'super_admin': return 'super_overview';
+      default: return 'overview';
     }
   };
 
