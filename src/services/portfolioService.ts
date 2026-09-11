@@ -88,7 +88,7 @@ export async function createUnit(input: {
   description?: string;
 }): Promise<{ success: boolean; shop?: Shop; error?: string }> {
   try {
-    const row = {
+    const fullRow: Record<string, unknown> = {
       organization_id: input.organization_id,
       shopping_center_id: input.shopping_center_id,
       property_id: input.property_id,
@@ -101,18 +101,40 @@ export async function createUnit(input: {
       public_listing: input.public_listing,
       public_featured: false,
       qr_code: `UW-${input.shop_number}`,
-      images: [] as string[],
-      features: [] as string[],
+      images: [],
+      features: [],
       property_type: input.property_type,
       description: input.description || '',
     };
-    const { data, error } = await client().from('shops').insert(row).select('*').single();
-    if (error) {
-      // Local fallback so UI still works if RLS blocks
-      const shop = db.addShop(row as Omit<Shop, 'id'>);
-      return { success: true, shop, error: `Saved locally only: ${error.message}` };
+
+    let { data, error } = await client().from('shops').insert(fullRow).select('*').single();
+
+    // Retry without optional columns if schema cache is stale / column missing
+    if (error && /property_type|schema cache|column/i.test(error.message)) {
+      const minimal = {
+        organization_id: input.organization_id,
+        shopping_center_id: input.shopping_center_id,
+        property_id: input.property_id,
+        shop_number: input.shop_number.trim(),
+        status: input.status,
+        rental_amount: input.rental_amount,
+        size_sqm: input.size_sqm,
+        description: input.description || '',
+      };
+      const retry = await client().from('shops').insert(minimal).select('*').single();
+      data = retry.data;
+      error = retry.error;
     }
-    const shop = data as Shop;
+
+    if (error) return { success: false, error: error.message };
+
+    const shop = {
+      ...(data as Shop),
+      property_type: input.property_type,
+      floor: input.floor,
+      deposit_amount: input.deposit_amount,
+      public_listing: input.public_listing,
+    };
     db.shops.unshift(shop);
     db.saveToStorage();
     return { success: true, shop };
