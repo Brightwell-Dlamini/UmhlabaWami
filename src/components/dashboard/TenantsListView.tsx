@@ -63,6 +63,7 @@ export const TenantsListView: React.FC<{ onOpenCreateTicketForShop?: () => void 
       setNotice(res.error || 'Could not save tenant');
       return;
     }
+    setTenants([...db.tenants].filter((t) => !orgId || t.organization_id === orgId));
     setNotice(`Tenant "${businessName}" saved to the database.`);
     setShowAdd(false);
     setBusinessName('');
